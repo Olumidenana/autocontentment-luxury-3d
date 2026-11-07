@@ -35,7 +35,7 @@ export class Scene3D {
 
     this.currentCameraTarget = this.cameraTargets.exterior;
     this.currentLookAt = new THREE.Vector3(0, 0.35, 0);
-    this.currentPaintColor = 0x0C813D; // Default AutoContentment Emerald
+    this.currentPaintColor = 0xBAC0C6; // Factory OEM Iridium Silver Metallic default (Mercedes E350)
 
     this.init();
   }
@@ -115,7 +115,11 @@ export class Scene3D {
   }
 
   // Switches 3D Car Architecture dynamically based on selected vehicle
-  setVehicleModel(brand, modelId) {
+  setVehicleModel(brand, modelId, oemHex) {
+    if (oemHex !== undefined) {
+      this.currentPaintColor = oemHex;
+    }
+
     let bodyType = 'sedan';
     if (modelId.includes('prado') || modelId.includes('rx350') || modelId.includes('gle') || modelId.includes('crv')) {
       bodyType = 'suv';
@@ -126,6 +130,8 @@ export class Scene3D {
     if (bodyType !== this.currentBodyType) {
       this.currentBodyType = bodyType;
       this.buildCarChassis(bodyType);
+    } else if (oemHex !== undefined) {
+      this.setCarPaint(oemHex);
     }
   }
 

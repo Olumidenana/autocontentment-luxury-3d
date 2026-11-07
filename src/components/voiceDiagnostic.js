@@ -1,10 +1,11 @@
 import confetti from 'canvas-confetti';
 
 export class VoiceDiagnostic {
-  constructor(containerEl, getVehicleFn, scene3DFn) {
+  constructor(containerEl, getVehicleFn, scene3DFn, realStudioViewerFn) {
     this.container = containerEl;
     this.getVehicle = getVehicleFn;
     this.getScene3D = scene3DFn;
+    this.getRealStudioViewer = realStudioViewerFn;
     this.recognition = null;
     this.isRecording = false;
     this.audioContext = null;
@@ -546,7 +547,13 @@ export class VoiceDiagnostic {
     const stepsList = diagnosis.steps[lang] || (lang.includes('yoruba') ? diagnosis.steps.yoruba : diagnosis.steps.pidgin) || diagnosis.steps.en;
     const carHeader = `${vehicle.year} ${vehicle.model.name}`;
 
-    // Automatically trigger the 3D Scene camera to teleport and highlight the component!
+    // Automatically trigger both the Real Engine Inspector pin AND 3D Scene camera
+    if (this.getRealStudioViewer) {
+      const studio = this.getRealStudioViewer();
+      if (studio) {
+        studio.triggerFirstAidHighlight(diagnosis.componentId);
+      }
+    }
     const scene = this.getScene3D ? this.getScene3D() : null;
     if (scene) {
       scene.focusFirstAidComponent(diagnosis.componentId);

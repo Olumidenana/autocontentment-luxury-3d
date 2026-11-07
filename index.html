@@ -16,14 +16,22 @@
     <!-- Fixed 3D WebGL Background Canvas Layer -->
     <div id="canvas-container" class="webgl-canvas-container"></div>
 
+    <!-- Photorealistic Real-Life Vehicle & Engine Showroom Overlay -->
+    <div id="realStudioContainer" class="real-studio-container"></div>
+
     <!-- Floating 3D Camera & Inspection Toolbar -->
     <div class="camera-inspection-toolbar">
-      <div class="toolbar-label">3D CHASSIS CAMERA:</div>
-      <button class="btn-cam-view active" data-view="exterior">🏎️ Exterior Orbit</button>
-      <button class="btn-cam-view" data-view="engine">⚙️ Open Hood / Inspect Engine</button>
-      <button class="btn-cam-view" data-view="wheel">🛞 Brembo Brakes</button>
-      <button class="btn-cam-view" data-view="xray">🔬 X-Ray Chassis</button>
-      <button class="btn-cam-view" id="btnToggleRotate">🔄 360° Spin</button>
+      <div class="toolbar-label">VIEWPORT MODE:</div>
+      <button class="btn-studio-tab active" data-mode="studio" id="barBtnStudio">📸 Real-Life Studio</button>
+      <button class="btn-studio-tab" data-mode="engine" id="barBtnEngine">⚙️ Real Engine Bay</button>
+      <button class="btn-studio-tab" data-mode="webgl" id="barBtnWebGL">🌐 3D WebGL Orbit</button>
+      <div class="webgl-only-tools" id="webglOnlyTools" style="display: none; align-items: center; gap: 8px;">
+        <button class="btn-cam-view active" data-view="exterior">🏎️ Orbit</button>
+        <button class="btn-cam-view" data-view="engine">⚙️ Hood</button>
+        <button class="btn-cam-view" data-view="wheel">🛞 Brakes</button>
+        <button class="btn-cam-view" data-view="xray">🔬 X-Ray</button>
+        <button class="btn-cam-view" id="btnToggleRotate">🔄 Spin</button>
+      </div>
     </div>
 
     <!-- Luxury Top Navigation Bar -->
