@@ -9,7 +9,7 @@ export class Scene3D {
     this.camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     
-    this.currentBodyType = 'sedan'; // 'sedan' | 'suv' | 'gt_sports'
+    this.currentBodyType = 'mercedes'; // 'mercedes' | 'sedan' | 'gt_sports'
     this.carGroup = new THREE.Group();
     this.chassisMeshGroup = new THREE.Group();
     this.bonnetGroup = new THREE.Group();
@@ -22,6 +22,12 @@ export class Scene3D {
     this.autoRotate = false;
     this.activePin = null;
 
+    // DRACO & GLTF Loaders for High-Fidelity 3D Car Models
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('/draco/gltf/');
+    this.gltfLoader = new GLTFLoader();
+    this.gltfLoader.setDRACOLoader(dracoLoader);
+
     this.textureLoader = new THREE.TextureLoader();
     this.currentEngineImageUrl = '/images/engines/engine_mercedes_v6.jpg';
     this.currentCarImageUrl = '/images/cars/mercedes_e350.jpg';
@@ -30,12 +36,12 @@ export class Scene3D {
 
     this.cameraTargets = {
       exterior:    { pos: new THREE.Vector3(5.2, 1.8, 5.2), lookAt: new THREE.Vector3(0, 0.35, 0) },
-      bonnet_open: { pos: new THREE.Vector3(2.3, 1.8, 1.1), lookAt: new THREE.Vector3(1.15, 0.42, 0) },
-      battery:     { pos: new THREE.Vector3(1.5, 1.6, 0.8), lookAt: new THREE.Vector3(1.05, 0.52, 0.45) },
-      coolant:     { pos: new THREE.Vector3(2.0, 1.4, 0.5), lookAt: new THREE.Vector3(1.55, 0.48, 0.35) },
-      oil_dipstick:{ pos: new THREE.Vector3(1.6, 1.6, 0.15), lookAt: new THREE.Vector3(1.15, 0.52, 0.0) },
-      brake_fluid: { pos: new THREE.Vector3(1.3, 1.6, -0.6), lookAt: new THREE.Vector3(0.85, 0.55, -0.42) },
-      wheel:       { pos: new THREE.Vector3(1.8, 0.4, 1.8), lookAt: new THREE.Vector3(1.4, -0.15, 1.0) },
+      bonnet_open: { pos: new THREE.Vector3(2.4, 1.8, 1.1), lookAt: new THREE.Vector3(1.15, 0.42, 0) },
+      battery:     { pos: new THREE.Vector3(1.6, 1.6, 0.8), lookAt: new THREE.Vector3(1.15, 0.52, 0.45) },
+      coolant:     { pos: new THREE.Vector3(2.1, 1.4, 0.5), lookAt: new THREE.Vector3(1.65, 0.48, 0.35) },
+      oil_dipstick:{ pos: new THREE.Vector3(1.7, 1.6, 0.15), lookAt: new THREE.Vector3(1.25, 0.52, 0.0) },
+      brake_fluid: { pos: new THREE.Vector3(1.4, 1.6, -0.6), lookAt: new THREE.Vector3(0.95, 0.55, -0.42) },
+      wheel:       { pos: new THREE.Vector3(2.0, 0.4, 2.0), lookAt: new THREE.Vector3(1.4, -0.15, 1.0) },
       xray:        { pos: new THREE.Vector3(4.2, 2.4, 4.2), lookAt: new THREE.Vector3(0, 0.35, 0) }
     };
 
@@ -61,34 +67,46 @@ export class Scene3D {
 
     this.setupLighting();
     this.buildStudioShowroom();
-    this.buildCarChassis(this.currentBodyType);
+
+    // Assemble Car Hierarchy
+    this.carGroup.add(this.chassisMeshGroup);
+    this.carGroup.add(this.engineBayGroup);
+    this.carGroup.add(this.bonnetGroup);
+    this.scene.add(this.carGroup);
+
+    // Load initial authentic Mercedes 3D model
+    this.loadVehicleModel('mercedes');
+    this.buildEngineComponents();
+    this.buildBonnetMesh();
     this.buildDustSheet();
     this.setupEvents();
     this.animate();
   }
 
   setupLighting() {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.95);
     this.scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
-    keyLight.position.set(6, 10, 6);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.0);
+    keyLight.position.set(6, 12, 6);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
     this.scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0x0C813D, 2.4);
-    rimLight.position.set(-6, 5, -6);
+    const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.4);
+    fillLight.position.set(-6, 8, -6);
+    this.scene.add(fillLight);
+
+    // Warm golden rim light for luxury showroom halo
+    const rimLight = new THREE.DirectionalLight(0xfef08a, 1.8);
+    rimLight.position.set(0, 5, -8);
     this.scene.add(rimLight);
 
-    const frontFill = new THREE.DirectionalLight(0xffeedd, 1.6);
-    frontFill.position.set(7, 1.5, 0);
-    this.scene.add(frontFill);
-
-    this.engineSpotlight = new THREE.SpotLight(0xffffff, 0, 10, Math.PI / 4, 0.3);
-    this.engineSpotlight.position.set(1.4, 4.0, 0);
-    this.engineSpotlight.target.position.set(1.1, 0.45, 0);
+    // Dedicated Engine Bay Inspection Spotlight
+    this.engineSpotlight = new THREE.SpotLight(0xffffff, 0, 10, Math.PI / 4, 0.35, 1);
+    this.engineSpotlight.position.set(1.4, 3.2, 0);
+    this.engineSpotlight.target.position.set(1.2, 0.3, 0);
     this.scene.add(this.engineSpotlight);
     this.scene.add(this.engineSpotlight.target);
   }
@@ -97,8 +115,8 @@ export class Scene3D {
     const floorGeo = new THREE.PlaneGeometry(60, 60);
     const floorMat = new THREE.MeshStandardMaterial({
       color: 0x080b10,
-      roughness: 0.22,
-      metalness: 0.72
+      roughness: 0.18,
+      metalness: 0.78
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
@@ -118,458 +136,279 @@ export class Scene3D {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(0, -0.505, 0);
     this.scene.add(shadow);
+  }
 
-    // 3D Realistic Vehicle Studio Backdrop Billboard
-    const billboardTex = this.textureLoader.load(this.currentCarImageUrl);
-    billboardTex.colorSpace = THREE.SRGBColorSpace;
-    const billboardGeo = new THREE.PlaneGeometry(6.6, 3.8);
-    const billboardMat = new THREE.MeshBasicMaterial({
-      map: billboardTex,
-      transparent: true,
-      opacity: 0.92,
-      side: THREE.DoubleSide
+  /**
+   * Loads high-detail production 3D vehicle models (Mercedes, Executive Sedan, Sports GT)
+   */
+  loadVehicleModel(type) {
+    let modelPath = '/models/mercedes.glb';
+    let scale = 0.92;
+    let rotationY = Math.PI / 2;
+    let posY = -0.50;
+
+    if (type === 'sedan') {
+      modelPath = '/models/sedan.glb';
+      scale = 1.05;
+      rotationY = -Math.PI / 2;
+      posY = -0.48;
+    } else if (type === 'gt_sports' || type === 'ferrari') {
+      modelPath = '/models/ferrari.glb';
+      scale = 1.0;
+      rotationY = 0;
+      posY = -0.50;
+    }
+
+    console.log(`Loading 3D model: ${modelPath}`);
+
+    this.gltfLoader.load(modelPath, (gltf) => {
+      // Clear previous car model from chassis group
+      while (this.chassisMeshGroup.children.length > 0) {
+        this.chassisMeshGroup.remove(this.chassisMeshGroup.children[0]);
+      }
+      this.bodyMaterials = [];
+      this.wheels = [];
+
+      const model = gltf.scene;
+      model.scale.set(scale, scale, scale);
+      model.position.set(0, posY, 0);
+      model.rotation.y = rotationY;
+
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+
+          const matName = child.material && child.material.name ? child.material.name.toLowerCase() : '';
+          const nodeName = child.name ? child.name.toLowerCase() : '';
+
+          // Identify vehicle body panels and apply OEM factory paint
+          if (
+            matName.includes('body') || 
+            matName.includes('carpaint') || 
+            matName.includes('coloured') || 
+            matName.includes('paint') ||
+            nodeName.includes('body')
+          ) {
+            child.material = new THREE.MeshPhysicalMaterial({
+              color: this.currentPaintColor,
+              metalness: 0.88,
+              roughness: 0.12,
+              clearcoat: 1.0,
+              clearcoatRoughness: 0.04,
+              reflectivity: 0.98
+            });
+            this.bodyMaterials.push(child.material);
+          } else if (
+            matName.includes('wheel') || 
+            matName.includes('rim') || 
+            nodeName.includes('rim') || 
+            nodeName.includes('wheel')
+          ) {
+            // High-luster alloy rims
+            if (child.material) {
+              child.material.metalness = 0.95;
+              child.material.roughness = 0.16;
+            }
+            this.wheels.push(child);
+          } else if (matName.includes('tire')) {
+            if (child.material) {
+              child.material.roughness = 0.85;
+              child.material.metalness = 0.1;
+            }
+            this.wheels.push(child);
+          }
+        }
+      });
+
+      this.chassisMeshGroup.add(model);
+      console.log(`Loaded 3D vehicle model ${modelPath} successfully!`);
+    }, undefined, (err) => {
+      console.error(`Error loading model ${modelPath}:`, err);
     });
-    this.carBillboardMesh = new THREE.Mesh(billboardGeo, billboardMat);
-    this.carBillboardMesh.position.set(0, 1.85, -4.2);
-    this.scene.add(this.carBillboardMesh);
   }
 
-  updateEngineTexture(url) {
-    if (!url) return;
-    this.currentEngineImageUrl = url;
-    if (!this.textureLoader) this.textureLoader = new THREE.TextureLoader();
-    this.textureLoader.load(url, (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      if (this.engineDeckMesh) {
-        this.engineDeckMesh.material.map = tex;
-        this.engineDeckMesh.material.needsUpdate = true;
-      }
-    });
-  }
-
-  updateCarBillboardTexture(url) {
-    if (!url) return;
-    this.currentCarImageUrl = url;
-    if (!this.textureLoader) this.textureLoader = new THREE.TextureLoader();
-    this.textureLoader.load(url, (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      if (this.carBillboardMesh) {
-        this.carBillboardMesh.material.map = tex;
-        this.carBillboardMesh.material.needsUpdate = true;
-      }
-    });
-  }
-
-  // Switches 3D Car Architecture dynamically based on selected vehicle
-  setVehicleModel(brand, modelId, oemHex, vehicleData) {
-    if (oemHex !== undefined) {
-      this.currentPaintColor = oemHex;
-    }
-
-    if (vehicleData) {
-      if (vehicleData.engineImage) {
-        this.updateEngineTexture(vehicleData.engineImage);
-      }
-      if (vehicleData.image) {
-        this.updateCarBillboardTexture(vehicleData.image);
-      }
-    }
-
-    let bodyType = 'sedan';
-    if (modelId.includes('prado') || modelId.includes('rx350') || modelId.includes('gle') || modelId.includes('crv')) {
-      bodyType = 'suv';
-    } else if (modelId.includes('valmora') || modelId.includes('is250') || modelId.includes('civic')) {
-      bodyType = 'gt_sports';
-    }
-
-    if (bodyType !== this.currentBodyType) {
-      this.currentBodyType = bodyType;
-      this.buildCarChassis(bodyType);
-    } else if (oemHex !== undefined) {
-      this.setCarPaint(oemHex);
-    }
-  }
-
-  buildCarChassis(type) {
-    // Clear existing car meshes
-    while (this.chassisMeshGroup.children.length > 0) {
-      this.chassisMeshGroup.remove(this.chassisMeshGroup.children[0]);
-    }
-    while (this.bonnetGroup.children.length > 0) {
-      this.bonnetGroup.remove(this.bonnetGroup.children[0]);
-    }
+  /**
+   * Constructs the 3D Mechanical Engine Bay under the hood
+   */
+  buildEngineComponents() {
     while (this.engineBayGroup.children.length > 0) {
       this.engineBayGroup.remove(this.engineBayGroup.children[0]);
     }
-    this.wheels = [];
-    this.bodyMaterials = [];
     this.firstAidPins = {};
 
-    const paintMat = new THREE.MeshPhysicalMaterial({
-      color: this.currentPaintColor,
-      metalness: 0.88,
-      roughness: 0.14,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.05,
-      reflectivity: 0.98
-    });
-    this.bodyMaterials.push(paintMat);
-
-    const carbonMat = new THREE.MeshStandardMaterial({ color: 0x121418, roughness: 0.5, metalness: 0.8 });
-    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xeef2f7, metalness: 0.98, roughness: 0.08 });
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0x0a1018,
-      metalness: 0.1,
-      roughness: 0.04,
-      transmission: 0.9,
-      ior: 1.52,
-      transparent: true,
-      opacity: 0.88
-    });
-
-    if (type === 'suv') {
-      // 1. High-Riding Muscular SUV Chassis (Prado / RX 350 / GLE 450)
-      const chassis = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.6, 2.1), carbonMat);
-      chassis.position.set(0, -0.05, 0);
-      this.chassisMeshGroup.add(chassis);
-
-      // Flared SUV Cabin & Roof
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.85, 1.8), glassMat);
-      cabin.position.set(-0.25, 0.75, 0);
-      this.chassisMeshGroup.add(cabin);
-
-      // Roof Rails
-      [-0.75, 0.75].forEach(z => {
-        const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2.4, 8), chromeMat);
-        rail.rotateZ(Math.PI / 2);
-        rail.position.set(-0.25, 1.2, z);
-        this.chassisMeshGroup.add(rail);
-      });
-
-      // Main SUV Body
-      const body = new THREE.Mesh(new THREE.BoxGeometry(4.25, 0.75, 2.05), paintMat);
-      body.position.set(0, 0.2, 0);
-      this.chassisMeshGroup.add(body);
-
-      // Upright SUV Grille
-      const grille = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 1.55), chromeMat);
-      grille.position.set(2.15, 0.1, 0);
-      this.chassisMeshGroup.add(grille);
-
-      // SUV Bonnet (Hinged at Cowl x=0.45, y=0.55)
-      this.bonnetGroup.position.set(0.45, 0.55, 0);
-      const bonnetMesh = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.07, 1.8), paintMat);
-      bonnetMesh.position.set(0.84, 0.02, 0);
-      bonnetMesh.rotation.z = -0.04;
-      this.bonnetGroup.add(bonnetMesh);
-      this.chassisMeshGroup.add(this.bonnetGroup);
-
-      // Heavy-Duty Big SUV Wheels & Raised Clearance
-      const wheelPos = [
-        { x: 1.45, y: -0.15, z: 1.1 }, { x: 1.45, y: -0.15, z: -1.1 },
-        { x: -1.45, y: -0.15, z: 1.1 }, { x: -1.45, y: -0.15, z: -1.1 }
-      ];
-      wheelPos.forEach(p => {
-        const w = this.createRealisticWheel(0.44, 0.32, 0.28);
-        w.position.set(p.x, p.y, p.z);
-        this.chassisMeshGroup.add(w);
-        this.wheels.push(w);
-      });
-
-      this.buildEngineComponents('suv');
-
-    } else if (type === 'sedan') {
-      // 2. Executive Saloon / Sedan (Lexus ES 350 / Camry / Mercedes C300)
-      const chassis = new THREE.Mesh(new THREE.BoxGeometry(4.35, 0.42, 1.9), carbonMat);
-      chassis.position.set(0, -0.18, 0);
-      this.chassisMeshGroup.add(chassis);
-
-      // Sleek 3-Box Sedan Greenhouse Cabin
-      const cabin = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.88, 2.3, 20), glassMat);
-      cabin.rotateZ(Math.PI / 2);
-      cabin.scale.set(1, 0.58, 0.84);
-      cabin.position.set(-0.2, 0.52, 0);
-      this.chassisMeshGroup.add(cabin);
-
-      // Sculpted Sedan Waistline
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.98, 4.3, 24, 6), paintMat);
-      body.rotateZ(Math.PI / 2);
-      body.scale.set(1, 0.48, 0.96);
-      body.position.set(0, 0.06, 0);
-      this.chassisMeshGroup.add(body);
-
-      // Lexus Spindle / Mercedes Panamericana Grille
-      const grille = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.42, 1.45), chromeMat);
-      grille.position.set(2.14, -0.06, 0);
-      this.chassisMeshGroup.add(grille);
-
-      // Sedan Bonnet (Hinged at x=0.4, y=0.28)
-      this.bonnetGroup.position.set(0.4, 0.28, 0);
-      const bonnetMesh = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.06, 1.55), paintMat);
-      bonnetMesh.position.set(0.85, 0.02, 0);
-      bonnetMesh.rotation.z = -0.05;
-      this.bonnetGroup.add(bonnetMesh);
-      this.chassisMeshGroup.add(this.bonnetGroup);
-
-      // Executive 19" Multispoke Wheels
-      const wheelPos = [
-        { x: 1.38, y: -0.22, z: 0.98 }, { x: 1.38, y: -0.22, z: -0.98 },
-        { x: -1.38, y: -0.22, z: 0.98 }, { x: -1.38, y: -0.22, z: -0.98 }
-      ];
-      wheelPos.forEach(p => {
-        const w = this.createRealisticWheel(0.38, 0.28, 0.26);
-        w.position.set(p.x, p.y, p.z);
-        this.chassisMeshGroup.add(w);
-        this.wheels.push(w);
-      });
-
-      this.buildEngineComponents('sedan');
-
-    } else {
-      // 3. Sports Grand Tourer (Valmora Alba GT / Fastback Coupe)
-      const chassis = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.4, 1.98), carbonMat);
-      chassis.position.set(0, -0.2, 0);
-      this.chassisMeshGroup.add(chassis);
-
-      // Low Fastback Canopy
-      const cabin = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.84, 2.2, 24), glassMat);
-      cabin.rotateZ(Math.PI / 2);
-      cabin.scale.set(1, 0.52, 0.86);
-      cabin.position.set(-0.25, 0.48, 0);
-      this.chassisMeshGroup.add(cabin);
-
-      // Curvaceous GT Body
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.94, 1.0, 4.3, 32, 6), paintMat);
-      body.rotateZ(Math.PI / 2);
-      body.scale.set(1, 0.46, 0.98);
-      body.position.set(0, 0.05, 0);
-      this.chassisMeshGroup.add(body);
-
-      // Front Carbon Splitter & Grille
-      const splitter = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.06, 1.96), carbonMat);
-      splitter.position.set(2.18, -0.32, 0);
-      this.chassisMeshGroup.add(splitter);
-
-      // GT Bonnet (Hinged at x=0.38, y=0.26)
-      this.bonnetGroup.position.set(0.38, 0.26, 0);
-      const bonnetMesh = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.06, 1.58), paintMat);
-      bonnetMesh.position.set(0.86, 0.02, 0);
-      bonnetMesh.rotation.z = -0.05;
-      this.bonnetGroup.add(bonnetMesh);
-      this.chassisMeshGroup.add(this.bonnetGroup);
-
-      // Sports Staggered Wheels & Brembo Brakes
-      const wheelPos = [
-        { x: 1.4, y: -0.22, z: 1.02 }, { x: 1.4, y: -0.22, z: -1.02 },
-        { x: -1.4, y: -0.22, z: 1.05 }, { x: -1.4, y: -0.22, z: -1.05 }
-      ];
-      wheelPos.forEach(p => {
-        const w = this.createRealisticWheel(0.38, 0.28, 0.28);
-        w.position.set(p.x, p.y, p.z);
-        this.chassisMeshGroup.add(w);
-        this.wheels.push(w);
-      });
-
-      this.buildEngineComponents('gt_sports');
-    }
-
-    // AutoContentment Emerald Shield Emblem on Nose
-    const emblem = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.08, 0.04, 16),
-      new THREE.MeshStandardMaterial({ color: 0x0C813D, metalness: 0.9, roughness: 0.1 })
-    );
-    emblem.rotateZ(Math.PI / 2);
-    emblem.position.set(2.24, -0.02, 0);
-    this.chassisMeshGroup.add(emblem);
-
-    this.carGroup.add(this.chassisMeshGroup);
-    this.scene.add(this.carGroup);
-  }
-
-  createRealisticWheel(radius, width, rimRadius) {
-    const group = new THREE.Group();
-
-    // Tire
-    const tire = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius, radius, width, 24),
-      new THREE.MeshStandardMaterial({ color: 0x16181b, roughness: 0.9, metalness: 0.1 })
-    );
-    tire.rotateX(Math.PI / 2);
-    tire.castShadow = true;
-    group.add(tire);
-
-    // Rim
-    const rimMat = new THREE.MeshStandardMaterial({ color: 0xd6dde5, metalness: 0.96, roughness: 0.12 });
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(rimRadius, rimRadius, width + 0.01, 20), rimMat);
-    rim.rotateX(Math.PI / 2);
-    group.add(rim);
-
-    // Spokes
-    for (let i = 0; i < 10; i++) {
-      const angle = (i / 10) * Math.PI * 2;
-      const spoke = new THREE.Mesh(new THREE.BoxGeometry(rimRadius * 0.85, 0.035, 0.03), rimMat);
-      spoke.position.set(Math.cos(angle) * (rimRadius * 0.45), Math.sin(angle) * (rimRadius * 0.45), width * 0.42);
-      spoke.rotation.z = angle;
-      group.add(spoke);
-    }
-
-    // Brembo Cross-Drilled Rotor & Caliper
-    const rotor = new THREE.Mesh(
-      new THREE.CylinderGeometry(rimRadius * 0.8, rimRadius * 0.8, 0.04, 16),
-      new THREE.MeshStandardMaterial({ color: 0x8a99a8, metalness: 0.92, roughness: 0.28 })
-    );
-    rotor.rotateX(Math.PI / 2);
-    group.add(rotor);
-
-    const caliper = new THREE.Mesh(
-      new THREE.BoxGeometry(0.09, 0.16, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0x0C813D, metalness: 0.88, roughness: 0.2 })
-    );
-    caliper.position.set(0.1, 0.08, 0.02);
-    group.add(caliper);
-
-    return group;
-  }
-
-  buildEngineComponents(type) {
     this.engineBayGroup.position.set(1.2, 0.0, 0);
 
     // 1. Engine Bay Apron Tub
     const tub = new THREE.Mesh(
-      new THREE.BoxGeometry(1.65, 0.55, 1.52),
-      new THREE.MeshStandardMaterial({ color: 0x181c22, roughness: 0.7, side: THREE.BackSide })
+      new THREE.BoxGeometry(1.68, 0.65, 1.55),
+      new THREE.MeshStandardMaterial({ color: 0x14181f, roughness: 0.8, side: THREE.BackSide })
     );
-    tub.position.set(0, 0.1, 0);
+    tub.position.set(0, 0.15, 0);
     this.engineBayGroup.add(tub);
 
-    // 3D Realistic Photographed Engine Bay Deck (maps the exact engine photo of the selected vehicle in 3D)
-    if (!this.textureLoader) this.textureLoader = new THREE.TextureLoader();
-    const engineTex = this.textureLoader.load(this.currentEngineImageUrl || '/images/engines/engine_mercedes_v6.jpg');
-    engineTex.colorSpace = THREE.SRGBColorSpace;
-
-    const engineDeckGeo = new THREE.PlaneGeometry(1.62, 1.45, 16, 16);
-    engineDeckGeo.rotateX(-Math.PI / 2);
-    const engineDeckMat = new THREE.MeshStandardMaterial({
-      map: engineTex,
-      roughness: 0.38,
-      metalness: 0.45,
-      bumpScale: 0.05
-    });
-    this.engineDeckMesh = new THREE.Mesh(engineDeckGeo, engineDeckMat);
-    this.engineDeckMesh.position.set(0.04, 0.36, 0);
-    this.engineBayGroup.add(this.engineDeckMesh);
-
-    // 2. Realistic Engine Block (Transverse V6 for Sedan, Longitudinal for SUV/GT)
-    const block = new THREE.Mesh(
-      new THREE.BoxGeometry(1.0, 0.5, 0.74),
-      new THREE.MeshStandardMaterial({ color: 0x2b313a, metalness: 0.9, roughness: 0.35 })
-    );
-    block.position.set(0, 0.1, 0);
+    // 2. High-Detail V6/V8 Die-Cast Aluminum Engine Block
+    const blockMat = new THREE.MeshStandardMaterial({ color: 0x333b47, metalness: 0.92, roughness: 0.3 });
+    const block = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.48, 0.72), blockMat);
+    block.position.set(0, 0.12, 0);
     this.engineBayGroup.add(block);
 
-    // 3. Intake Plenum Runners
-    const intake = new THREE.Mesh(
-      new THREE.BoxGeometry(0.85, 0.16, 0.36),
-      new THREE.MeshStandardMaterial({ color: 0xe0e8f0, metalness: 0.98, roughness: 0.1 })
-    );
-    intake.position.set(0, 0.44, 0);
-    this.engineBayGroup.add(intake);
+    // 3. Dual Angled Valve Covers (V-Configuration)
+    const valveCoverMat = new THREE.MeshStandardMaterial({ color: 0x1c2430, metalness: 0.85, roughness: 0.22 });
+    const leftValve = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.14, 0.26), valveCoverMat);
+    leftValve.position.set(0, 0.38, 0.26);
+    leftValve.rotation.x = 0.35;
+    this.engineBayGroup.add(leftValve);
 
-    // 4. Red Valve Covers
-    const coverGeo = new THREE.BoxGeometry(0.88, 0.15, 0.28);
-    const coverMat = new THREE.MeshStandardMaterial({ color: 0x990014, metalness: 0.75, roughness: 0.25 });
-    
-    const leftCover = new THREE.Mesh(coverGeo, coverMat);
-    leftCover.position.set(0, 0.38, 0.28);
-    leftCover.rotation.x = 0.32;
-    this.engineBayGroup.add(leftCover);
+    const rightValve = leftValve.clone();
+    rightValve.position.z = -0.26;
+    rightValve.rotation.x = -0.35;
+    this.engineBayGroup.add(rightValve);
 
-    const rightCover = leftCover.clone();
-    rightCover.position.z = -0.28;
-    rightCover.rotation.x = -0.32;
-    this.engineBayGroup.add(rightCover);
+    // 4. Polished Chrome Dual Intake Plenum Runners
+    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.98, roughness: 0.08 });
+    const plenum = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.14, 0.32), chromeMat);
+    plenum.position.set(0, 0.46, 0);
+    this.engineBayGroup.add(plenum);
 
-    // 5. FIRST-AID COMPONENT: 12V Battery with Terminal Clamps
+    // 5. Air Filter Airbox & Accordion Intake Hose
+    const airboxMat = new THREE.MeshStandardMaterial({ color: 0x111419, roughness: 0.7 });
+    const airbox = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.32, 0.4), airboxMat);
+    airbox.position.set(-0.42, 0.35, 0.45);
+    this.engineBayGroup.add(airbox);
+
+    const hoseGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.42, 16);
+    hoseGeo.rotateZ(Math.PI / 2);
+    const hose = new THREE.Mesh(hoseGeo, airboxMat);
+    hose.position.set(-0.18, 0.44, 0.28);
+    this.engineBayGroup.add(hose);
+
+    // 6. Polished Strut Tower Brace Bar
+    const braceGeo = new THREE.CylinderGeometry(0.022, 0.022, 1.5, 12);
+    braceGeo.rotateX(Math.PI / 2);
+    const brace = new THREE.Mesh(braceGeo, chromeMat);
+    brace.position.set(-0.12, 0.52, 0);
+    this.engineBayGroup.add(brace);
+
+    // 7. FIRST-AID 3D COMPONENT: 12V Battery & Terminals
     const batteryGroup = new THREE.Group();
     const batteryBox = new THREE.Mesh(
-      new THREE.BoxGeometry(0.28, 0.25, 0.35),
-      new THREE.MeshStandardMaterial({ color: 0x111316, roughness: 0.6 })
+      new THREE.BoxGeometry(0.3, 0.28, 0.38),
+      new THREE.MeshStandardMaterial({ color: 0x111317, roughness: 0.65 })
     );
     batteryGroup.add(batteryBox);
 
     const posTerminal = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.025, 0.025, 0.05, 12),
-      new THREE.MeshBasicMaterial({ color: 0xff2233 })
+      new THREE.CylinderGeometry(0.03, 0.03, 0.06, 12),
+      new THREE.MeshBasicMaterial({ color: 0xdc2626 })
     );
-    posTerminal.position.set(0.06, 0.14, 0.1);
+    posTerminal.position.set(0.07, 0.16, 0.11);
     batteryGroup.add(posTerminal);
 
     const negTerminal = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.025, 0.025, 0.05, 12),
-      new THREE.MeshBasicMaterial({ color: 0x222222 })
+      new THREE.CylinderGeometry(0.03, 0.03, 0.06, 12),
+      new THREE.MeshBasicMaterial({ color: 0x1e293b })
     );
-    negTerminal.position.set(0.06, 0.14, -0.1);
+    negTerminal.position.set(0.07, 0.16, -0.11);
     batteryGroup.add(negTerminal);
 
-    batteryGroup.position.set(-0.05, 0.32, 0.52);
+    batteryGroup.position.set(-0.06, 0.34, 0.54);
     this.engineBayGroup.add(batteryGroup);
-    this.addFirstAidPin('battery', '12V Battery & Terminals', [-0.05, 0.52, 0.52], '#ff2233');
+    this.addFirstAidPin('battery', '12V Battery & Terminals', [-0.06, 0.56, 0.54], '#dc2626');
 
-    // 6. FIRST-AID COMPONENT: Radiator Cap & Coolant Expansion Tank
+    // 8. FIRST-AID 3D COMPONENT: Radiator Cap & Coolant Tank
     const coolantGroup = new THREE.Group();
     const coolantTank = new THREE.Mesh(
-      new THREE.BoxGeometry(0.24, 0.26, 0.22),
-      new THREE.MeshPhysicalMaterial({ color: 0x99ddaa, transmission: 0.7, roughness: 0.2, transparent: true })
+      new THREE.BoxGeometry(0.26, 0.28, 0.24),
+      new THREE.MeshPhysicalMaterial({ color: 0xa7f3d0, transmission: 0.72, roughness: 0.2, transparent: true })
     );
     coolantGroup.add(coolantTank);
 
     const radCap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.05, 0.03, 16),
-      new THREE.MeshStandardMaterial({ color: 0xffcc00, metalness: 0.8, roughness: 0.2 })
+      new THREE.CylinderGeometry(0.055, 0.055, 0.04, 16),
+      new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.15 })
     );
-    radCap.position.set(0, 0.14, 0);
+    radCap.position.set(0, 0.16, 0);
     coolantGroup.add(radCap);
 
-    coolantGroup.position.set(0.55, 0.28, 0.42);
+    coolantGroup.position.set(0.58, 0.30, 0.44);
     this.engineBayGroup.add(coolantGroup);
-    this.addFirstAidPin('coolant', 'Radiator Coolant Tank & Cap', [0.55, 0.5, 0.42], '#ffcc00');
+    this.addFirstAidPin('coolant', 'Radiator Coolant Tank & Cap', [0.58, 0.52, 0.44], '#f59e0b');
 
-    // 7. FIRST-AID COMPONENT: Engine Oil Dipstick & Filler Cap
+    // 9. FIRST-AID 3D COMPONENT: Engine Oil Dipstick Loop
     const oilDipstick = new THREE.Mesh(
-      new THREE.TorusGeometry(0.035, 0.012, 8, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffa500 })
+      new THREE.TorusGeometry(0.04, 0.014, 10, 20),
+      new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
     );
-    oilDipstick.position.set(0.12, 0.48, 0.02);
+    oilDipstick.position.set(0.14, 0.52, 0.04);
     this.engineBayGroup.add(oilDipstick);
-    this.addFirstAidPin('oil_dipstick', 'Engine Oil Dipstick & Level Check', [0.12, 0.58, 0.02], '#ffa500');
+    this.addFirstAidPin('oil_dipstick', 'Engine Oil Dipstick & Level Check', [0.14, 0.62, 0.04], '#fbbf24');
 
-    // 8. FIRST-AID COMPONENT: Brake Fluid Reservoir
+    // 10. FIRST-AID 3D COMPONENT: Brake Fluid Master Cylinder Reservoir
     const brakeFluidTank = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, 0.2, 0.18),
-      new THREE.MeshPhysicalMaterial({ color: 0xffeeaa, transmission: 0.75, roughness: 0.2, transparent: true })
+      new THREE.BoxGeometry(0.18, 0.22, 0.2),
+      new THREE.MeshPhysicalMaterial({ color: 0xfef08a, transmission: 0.75, roughness: 0.2, transparent: true })
     );
-    brakeFluidTank.position.set(-0.35, 0.42, -0.45);
+    brakeFluidTank.position.set(-0.38, 0.44, -0.48);
     this.engineBayGroup.add(brakeFluidTank);
-    this.addFirstAidPin('brake_fluid', 'Brake Fluid Reservoir', [-0.35, 0.58, -0.45], '#00ccff');
+    this.addFirstAidPin('brake_fluid', 'Brake Master Cylinder Reservoir', [-0.38, 0.62, -0.48], '#3b82f6');
+  }
 
-    this.chassisMeshGroup.add(this.engineBayGroup);
+  /**
+   * Constructs the 3D Opening Bonnet (Hood) with aerodynamic styling
+   */
+  buildBonnetMesh() {
+    while (this.bonnetGroup.children.length > 0) {
+      this.bonnetGroup.remove(this.bonnetGroup.children[0]);
+    }
+
+    // Rear hinge pivot positioning
+    this.bonnetGroup.position.set(0.35, 0.64, 0);
+
+    const bonnetMat = new THREE.MeshPhysicalMaterial({
+      color: this.currentPaintColor,
+      metalness: 0.88,
+      roughness: 0.12,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+      reflectivity: 0.98
+    });
+    this.bodyMaterials.push(bonnetMat);
+
+    // Main Sculpted Bonnet Lid
+    const bonnetLid = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.04, 1.48), bonnetMat);
+    bonnetLid.position.set(0.84, 0, 0);
+    this.bonnetGroup.add(bonnetLid);
+
+    // Dual Center Crease Lines
+    const creaseMat = new THREE.MeshStandardMaterial({ color: 0x111317, metalness: 0.5, roughness: 0.5 });
+    const creaseLeft = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.02, 0.02), creaseMat);
+    creaseLeft.position.set(0.8, 0.03, 0.25);
+    this.bonnetGroup.add(creaseLeft);
+
+    const creaseRight = creaseLeft.clone();
+    creaseRight.position.z = -0.25;
+    this.bonnetGroup.add(creaseRight);
   }
 
   addFirstAidPin(id, name, localPos, hexColor) {
     const pinGroup = new THREE.Group();
 
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.05, 0.08, 20),
+      new THREE.RingGeometry(0.06, 0.09, 24),
       new THREE.MeshBasicMaterial({ color: hexColor, side: THREE.DoubleSide })
     );
     ring.rotateX(Math.PI / 2);
     pinGroup.add(ring);
 
-    const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(0.04, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
     pinGroup.add(sphere);
 
     const stem = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.008, 0.008, 0.14, 8),
+      new THREE.CylinderGeometry(0.01, 0.01, 0.15, 8),
       new THREE.MeshBasicMaterial({ color: hexColor })
     );
     stem.position.y = 0.08;
@@ -596,35 +435,43 @@ export class Scene3D {
     sheetGeo.computeVertexNormals();
 
     const sheetMat = new THREE.MeshStandardMaterial({
-      color: 0x151b24,
-      roughness: 0.38,
+      color: 0x090d14,
+      roughness: 0.65,
       metalness: 0.35,
-      side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.98
+      opacity: 0,
+      side: THREE.DoubleSide
     });
-
     this.dustSheet = new THREE.Mesh(sheetGeo, sheetMat);
     this.dustSheet.position.set(0, 0.08, 0);
     this.scene.add(this.dustSheet);
   }
 
-  focusFirstAidComponent(componentId) {
-    this.activePin = componentId;
-    this.openBonnet(true);
+  // Switches 3D Car Architecture dynamically based on selected vehicle
+  setVehicleModel(brand, modelId, oemHex) {
+    if (oemHex !== undefined) {
+      this.currentPaintColor = oemHex;
+      this.setCarPaint(oemHex);
+    }
 
-    const targetKey = this.cameraTargets[componentId] ? componentId : 'bonnet_open';
-    this.currentCameraTarget = this.cameraTargets[targetKey];
+    let bodyType = 'mercedes';
+    if (modelId.includes('camry') || modelId.includes('accord') || modelId.includes('es350') || modelId.includes('corolla')) {
+      bodyType = 'sedan';
+    } else if (modelId.includes('valmora') || modelId.includes('is250') || modelId.includes('civic')) {
+      bodyType = 'gt_sports';
+    } else if (modelId.includes('prado') || modelId.includes('rx350') || modelId.includes('gle') || modelId.includes('c300') || modelId.includes('e350')) {
+      bodyType = 'mercedes';
+    }
 
-    if (this.engineSpotlight) {
-      this.engineSpotlight.intensity = 4.5;
+    if (bodyType !== this.currentBodyType) {
+      this.currentBodyType = bodyType;
+      this.loadVehicleModel(bodyType);
     }
   }
 
-  openBonnet(open) {
-    this.isBonnetOpen = open;
-  }
-
+  /**
+   * Toggles the physical 3D Bonnet open or closed
+   */
   toggleBonnet() {
     this.isBonnetOpen = !this.isBonnetOpen;
     if (this.isBonnetOpen) {
@@ -637,16 +484,36 @@ export class Scene3D {
     return this.isBonnetOpen;
   }
 
+  openBonnet(open) {
+    this.isBonnetOpen = open;
+    if (open) {
+      this.currentCameraTarget = this.cameraTargets.bonnet_open;
+      if (this.engineSpotlight) this.engineSpotlight.intensity = 5.0;
+    } else {
+      this.currentCameraTarget = this.cameraTargets.exterior;
+      if (this.engineSpotlight) this.engineSpotlight.intensity = 0;
+    }
+  }
+
+  focusFirstAidComponent(componentId) {
+    this.activePin = componentId;
+    this.openBonnet(true);
+
+    const targetKey = this.cameraTargets[componentId] ? componentId : 'bonnet_open';
+    this.currentCameraTarget = this.cameraTargets[targetKey];
+
+    if (this.engineSpotlight) {
+      this.engineSpotlight.intensity = 5.0;
+    }
+  }
+
   setCameraView(viewName) {
     this.activePin = null;
     if (viewName === 'engine') {
       this.openBonnet(true);
-      this.currentCameraTarget = this.cameraTargets.bonnet_open;
-      if (this.engineSpotlight) this.engineSpotlight.intensity = 4.5;
     } else {
       this.openBonnet(false);
       this.currentCameraTarget = this.cameraTargets[viewName] || this.cameraTargets.exterior;
-      if (this.engineSpotlight) this.engineSpotlight.intensity = 0;
     }
 
     if (viewName === 'xray') {
@@ -678,63 +545,27 @@ export class Scene3D {
 
   updateScroll(progress) {
     if (this.dustSheet) {
-      if (progress < 0.18) {
-        this.dustSheet.visible = true;
-        const liftFactor = Math.min(1, progress / 0.15);
-        this.dustSheet.position.y = 0.08 + liftFactor * 4.8;
-        this.dustSheet.position.x = -liftFactor * 3.2;
-        this.dustSheet.material.opacity = Math.max(0, 0.98 - liftFactor * 1.1);
-        this.dustSheet.rotation.z = liftFactor * 0.35;
-      } else {
-        this.dustSheet.visible = false;
-      }
+      this.dustSheet.material.opacity = Math.max(0, 1 - progress * 2.5);
     }
 
-    if (!this.activePin) {
-      if (progress <= 0.25) {
-        const t = progress / 0.25;
+    if (!this.isBonnetOpen) {
+      if (progress < 0.2) {
+        this.currentCameraTarget = this.cameraTargets.exterior;
+      } else if (progress < 0.5) {
         this.currentCameraTarget = {
-          pos: new THREE.Vector3(
-            THREE.MathUtils.lerp(5.2, 3.4, t),
-            THREE.MathUtils.lerp(1.8, 1.4, t),
-            THREE.MathUtils.lerp(5.2, 3.8, t)
-          ),
-          lookAt: new THREE.Vector3(0, 0.35, 0)
+          pos: new THREE.Vector3(2.8, 1.8, 4.4),
+          lookAt: new THREE.Vector3(0.5, 0.35, 0)
         };
-        this.openBonnet(false);
-      } else if (progress <= 0.55) {
-        const t = (progress - 0.25) / 0.3;
+      } else if (progress < 0.8) {
         this.currentCameraTarget = {
-          pos: new THREE.Vector3(
-            THREE.MathUtils.lerp(3.4, 2.2, t),
-            THREE.MathUtils.lerp(1.4, 2.0, t),
-            THREE.MathUtils.lerp(3.8, 1.0, t)
-          ),
-          lookAt: new THREE.Vector3(1.1, 0.45, 0)
-        };
-        this.openBonnet(t > 0.15);
-      } else if (progress <= 0.8) {
-        const t = (progress - 0.55) / 0.25;
-        this.currentCameraTarget = {
-          pos: new THREE.Vector3(
-            THREE.MathUtils.lerp(2.2, 1.8, t),
-            THREE.MathUtils.lerp(2.0, 0.4, t),
-            THREE.MathUtils.lerp(1.0, 1.8, t)
-          ),
+          pos: new THREE.Vector3(2.2, 0.8, 2.2),
           lookAt: new THREE.Vector3(1.4, -0.15, 1.0)
         };
-        this.openBonnet(false);
       } else {
-        const t = (progress - 0.8) / 0.2;
         this.currentCameraTarget = {
-          pos: new THREE.Vector3(
-            THREE.MathUtils.lerp(1.8, -4.4, t),
-            THREE.MathUtils.lerp(0.4, 1.4, t),
-            THREE.MathUtils.lerp(1.8, 3.2, t)
-          ),
+          pos: new THREE.Vector3(-4.4, 1.4, 3.2),
           lookAt: new THREE.Vector3(0, 0.35, 0)
         };
-        this.openBonnet(false);
       }
     }
   }
@@ -756,7 +587,7 @@ export class Scene3D {
       this.camera.lookAt(this.currentLookAt);
     }
 
-    // Bonnet Opening Animation (Upward swing ~60 degrees for complete engine visibility)
+    // 3D Physical Bonnet Upward Swing (~60 degrees)
     const targetBonnetAngle = this.isBonnetOpen ? -Math.PI / 3.0 : 0;
     this.bonnetGroup.rotation.z += (targetBonnetAngle - this.bonnetGroup.rotation.z) * 0.08;
 
