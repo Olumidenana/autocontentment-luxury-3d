@@ -45,6 +45,7 @@
 
       <nav class="nav-links">
         <a href="#hero">UNVEIL</a>
+        <a href="#studio-3d">3D STUDIO</a>
         <a href="#powertrain">POWERTRAIN</a>
         <a href="#chassis">CHASSIS</a>
         <a href="#motion-sensor">KINEMATICS</a>
@@ -88,7 +89,55 @@
         </div>
       </section>
 
-      <!-- 2. The Sheet Comes Off Section -->
+      <!-- 2. DEDICATED 3D AUTOMOTIVE STUDIO & SHOWROOM SECTION -->
+      <section id="studio-3d" class="section-dedicated-3d">
+        <div class="dedicated-3d-card">
+          <div class="studio-header-row">
+            <div class="studio-badge-pill">
+              <span class="pulse-emerald"></span>
+              <span>DEDICATED 3D DIGITAL TWIN ATELIER</span>
+            </div>
+            <div class="studio-controls-hint">
+              <span>🖱️ TOUCH / CLICK-DRAG: 360° ORBIT • WHEEL: ZOOM • RIGHT CLICK: PAN</span>
+            </div>
+          </div>
+
+          <h2 class="studio-section-title">REAL-TIME 3D CHASSIS & ENGINE BAY</h2>
+          <p class="studio-section-desc">
+            Directly touch and rotate your chosen vehicle in high-definition 3D. Open the bonnet to inspect the 12V battery, radiator cap, oil dipstick, and brake fluid master cylinder.
+          </p>
+
+          <!-- Interactive 3D Action Controls -->
+          <div class="dedicated-stage-toolbar">
+            <button class="btn-stage-action btn-stage-bonnet" id="btnStageBonnet">
+              <span class="stage-btn-icon">⚙️</span>
+              <span id="stageBonnetText">OPEN BONNET (HOOD)</span>
+            </button>
+            <button class="btn-stage-action active" data-stage-view="exterior">
+              <span>🏎️ 3D Orbit View</span>
+            </button>
+            <button class="btn-stage-action" data-stage-view="engine">
+              <span>🔬 Engine Bay Zoom</span>
+            </button>
+            <button class="btn-stage-action" data-stage-view="wheel">
+              <span>🛞 Brembo Brakes</span>
+            </button>
+            <button class="btn-stage-action" data-stage-view="xray">
+              <span>🔬 X-Ray Chassis</span>
+            </button>
+            <button class="btn-stage-action" id="btnStageSpin">
+              <span>🔄 360° Auto-Spin</span>
+            </button>
+          </div>
+
+          <!-- Open View Window onto the 3D Canvas -->
+          <div class="dedicated-3d-viewport-window">
+            <div class="viewport-watermark">AUTOCONTENTMENT 3D CANVAS • INTERACTIVE ORBIT</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. The Sheet Comes Off Section -->
       <section id="sheet-reveal" class="section-editorial">
         <div class="editorial-card reveal-text">
           <div class="card-eyebrow">PRIVATE VIEWING PROTOCOL</div>

@@ -1126,6 +1126,159 @@ select option:checked {
   transform: scale(0.98);
 }
 
+/* Dedicated 3D Digital Twin Showroom Section */
+.section-dedicated-3d {
+  min-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 30px 5% 50px;
+  position: relative;
+  z-index: 20;
+}
+
+.dedicated-3d-card {
+  width: 100%;
+  max-width: 1200px;
+  background: rgba(10, 14, 20, 0.45);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(12, 129, 61, 0.35);
+  border-radius: 20px;
+  padding: 24px 32px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.studio-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.studio-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(12, 129, 61, 0.15);
+  border: 1px solid rgba(12, 129, 61, 0.4);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.pulse-emerald {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0C813D;
+  box-shadow: 0 0 8px #0C813D;
+  animation: pulseDot 1.8s infinite;
+}
+
+.studio-controls-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 4px 12px;
+  border-radius: 16px;
+}
+
+.studio-section-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 2px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.studio-section-desc {
+  font-size: 14px;
+  color: var(--color-text-dim);
+  margin: 0;
+  max-width: 800px;
+  line-height: 1.5;
+}
+
+.dedicated-stage-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.btn-stage-action {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 24px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-stage-action:hover,
+.btn-stage-action.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 0 16px var(--color-primary-glow);
+}
+
+.btn-stage-bonnet {
+  background: rgba(12, 129, 61, 0.25) !important;
+  border-color: #0C813D !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 16px rgba(12, 129, 61, 0.4) !important;
+}
+
+.btn-stage-bonnet.active {
+  background: #0C813D !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 24px rgba(12, 129, 61, 0.8) !important;
+}
+
+/* Open 3D View Window onto the 3D Canvas */
+.dedicated-3d-viewport-window {
+  width: 100%;
+  height: 440px;
+  border: 1px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 16px;
+  position: relative;
+  margin-top: 10px;
+  background: radial-gradient(circle at center, rgba(56, 189, 248, 0.04) 0%, transparent 70%);
+  pointer-events: none; /* Allows direct orbit click-through to WebGL canvas */
+}
+
+.viewport-watermark {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 /* Editorial Story Cards */
 .section-editorial,
 .section-powertrain,

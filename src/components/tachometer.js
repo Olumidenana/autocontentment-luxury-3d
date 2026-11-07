@@ -148,6 +148,34 @@ export class Tachometer {
     // Tachometer stays at steady idle RPM and is NOT distorted by scroll or mouse
   }
 
+  setSpeed(speedKmh) {
+    if (speedKmh <= 0.8) {
+      this.targetRpm = 950 + Math.random() * 40;
+      this.gearDisplay.textContent = 'IDLE (P)';
+      this.gearDisplay.style.color = '#0C813D';
+    } else if (speedKmh < 22) {
+      this.targetRpm = 1400 + speedKmh * 50;
+      this.gearDisplay.textContent = 'GEAR 1';
+      this.gearDisplay.style.color = '#38bdf8';
+    } else if (speedKmh < 48) {
+      this.targetRpm = 1800 + (speedKmh - 22) * 45;
+      this.gearDisplay.textContent = 'GEAR 2';
+      this.gearDisplay.style.color = '#38bdf8';
+    } else if (speedKmh < 75) {
+      this.targetRpm = 2200 + (speedKmh - 48) * 40;
+      this.gearDisplay.textContent = 'GEAR 3';
+      this.gearDisplay.style.color = '#38bdf8';
+    } else if (speedKmh < 105) {
+      this.targetRpm = 2600 + (speedKmh - 75) * 35;
+      this.gearDisplay.textContent = 'GEAR 4';
+      this.gearDisplay.style.color = '#38bdf8';
+    } else {
+      this.targetRpm = Math.min(7600, 3100 + (speedKmh - 105) * 45);
+      this.gearDisplay.textContent = 'OVERDRIVE';
+      this.gearDisplay.style.color = '#ffd700';
+    }
+  }
+
   animateLoop() {
     requestAnimationFrame(() => this.animateLoop());
 

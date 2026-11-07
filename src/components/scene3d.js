@@ -23,6 +23,11 @@ export class Scene3D {
     this.autoRotate = false;
     this.activePin = null;
 
+    // Kinematics & Speedometer Sensation
+    this.currentSpeedKmh = 0;
+    this.targetGForce = 1.0;
+    this.floorGrid = null;
+
     // DRACO & GLTF Loaders for Production 3D Car Models
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('/draco/gltf/');
@@ -142,6 +147,7 @@ export class Scene3D {
     grid.material.opacity = 0.28;
     grid.material.transparent = true;
     this.scene.add(grid);
+    this.floorGrid = grid;
 
     const shadowGeo = new THREE.PlaneGeometry(5.4, 2.8);
     const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.85 });
@@ -149,6 +155,11 @@ export class Scene3D {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(0, -0.505, 0);
     this.scene.add(shadow);
+  }
+
+  setVehicleSpeed(speedKmh, gForce = 1.0) {
+    this.currentSpeedKmh = Math.max(0, speedKmh);
+    this.targetGForce = gForce;
   }
 
   /**
@@ -637,6 +648,37 @@ export class Scene3D {
     // 3D Physical Bonnet Upward Swing (~60 degrees)
     const targetBonnetAngle = this.isBonnetOpen ? -Math.PI / 3.0 : 0;
     this.bonnetGroup.rotation.z += (targetBonnetAngle - this.bonnetGroup.rotation.z) * 0.08;
+
+    // Kinematics Speedometer Sensation: Wheel Rotation, Road Stream & Suspension Heave
+    if (this.currentSpeedKmh > 0.1) {
+      const speedMps = this.currentSpeedKmh / 3.6;
+      const wheelRadius = 0.35; // meters
+      const deltaRotation = (speedMps / wheelRadius) * 0.016;
+
+      this.wheels.forEach(wheel => {
+        wheel.rotation.x += deltaRotation;
+      });
+
+      if (this.floorGrid) {
+        this.floorGrid.position.z = (this.floorGrid.position.z + speedMps * 0.045) % 1.75;
+      }
+
+      // Subtle suspension vibration at speed
+      const vibration = Math.sin(performance.now() * 0.035) * Math.min(0.015, (this.currentSpeedKmh / 140) * 0.01);
+      this.carGroup.position.y = vibration;
+    } else {
+      this.carGroup.position.y = 0;
+    }
+
+    // Pothole Shock / High G-Force recoil
+    if (this.targetGForce > 1.3) {
+      const shock = (this.targetGForce - 1.0) * 0.06;
+      this.carGroup.position.y -= shock;
+      this.carGroup.rotation.z = (Math.random() - 0.5) * 0.035;
+      this.targetGForce += (1.0 - this.targetGForce) * 0.09;
+    } else {
+      this.carGroup.rotation.z = 0;
+    }
 
     // Auto-rotation
     if (this.autoRotate) {

@@ -80,4 +80,40 @@ export class SoundSynth {
     this.filter.frequency.cancelScheduledValues(now);
     this.filter.frequency.exponentialRampToValueAtTime(280, now + 0.7);
   }
+
+  setSpeedAudio(speedKmh) {
+    if (speedKmh <= 0.5) {
+      if (this.ctx && this.isPlaying && !this.isRevving) {
+        const now = this.ctx.currentTime;
+        this.gainNode.gain.cancelScheduledValues(now);
+        this.gainNode.gain.linearRampToValueAtTime(0.001, now + 0.5);
+      }
+      return;
+    }
+
+    this.initAudio();
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+    if (this.isRevving) return;
+
+    const now = this.ctx.currentTime;
+    const norm = Math.min(1.0, speedKmh / 140);
+    const targetGain = 0.04 + norm * 0.16;
+    const targetFreq1 = 45 + norm * 180;
+    const targetFreq2 = 22 + norm * 90;
+    const targetFilter = 320 + norm * 1200;
+
+    this.gainNode.gain.cancelScheduledValues(now);
+    this.gainNode.gain.linearRampToValueAtTime(targetGain, now + 0.1);
+
+    this.osc1.frequency.cancelScheduledValues(now);
+    this.osc1.frequency.linearRampToValueAtTime(targetFreq1, now + 0.1);
+
+    this.osc2.frequency.cancelScheduledValues(now);
+    this.osc2.frequency.linearRampToValueAtTime(targetFreq2, now + 0.1);
+
+    this.filter.frequency.cancelScheduledValues(now);
+    this.filter.frequency.linearRampToValueAtTime(targetFilter, now + 0.1);
+  }
 }

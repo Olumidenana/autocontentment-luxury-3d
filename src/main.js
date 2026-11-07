@@ -62,10 +62,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // 6. Initialize Smooth Inertia Scroll & GSAP ScrollTrigger
   const scrollController = new ScrollController(scene3D, tachometer);
 
-  // 7. Initialize Motion Sensor (Human Walk/Run vs. Car In-Motion)
+  // 7. Initialize Motion Sensor & Wire Speedometer Sensation to 3D Scene
   const motionContainer = document.getElementById('motionSensorContainer');
-  const motionSensor = new MotionSensor(motionContainer, (mode, speed, distance) => {
-    console.log(`Motion Mode: ${mode}, Speed: ${speed.toFixed(1)} km/h, Distance: ${(distance/1000).toFixed(2)} km`);
+  const motionSensor = new MotionSensor(motionContainer, (mode, speed, distance, gForce = 1.0) => {
+    // 1. Live Speedometer Kinematics in 3D (wheel rotation, road stream, suspension heave, pothole shock)
+    if (scene3D) {
+      scene3D.setVehicleSpeed(speed, gForce);
+    }
+    // 2. Live Tachometer & Gearbox update
+    if (tachometer) {
+      tachometer.setSpeed(speed);
+    }
+    // 3. Audio acceleration & throttle drone
+    if (soundSynth) {
+      soundSynth.setSpeedAudio(speed);
+    }
   });
 
   // 8. Initialize Real-Time Voice Perception & First Aid 3D Teleport
@@ -77,50 +88,75 @@ document.addEventListener('DOMContentLoaded', () => {
     () => realStudioViewer
   );
 
-  // 9. Interactive 3D Bonnet & Camera Toolbar
+  // 9. Interactive 3D Bonnet & Camera Toolbar (Both floating toolbar and dedicated 3D section)
   const btnBonnet = document.getElementById('btnToggleBonnet');
   const bonnetText = document.getElementById('bonnetBtnText');
+  const btnStageBonnet = document.getElementById('btnStageBonnet');
+  const stageBonnetText = document.getElementById('stageBonnetText');
+
+  const updateBonnetButtons = (isOpen) => {
+    if (btnBonnet) btnBonnet.classList.toggle('active', isOpen);
+    if (bonnetText) bonnetText.textContent = isOpen ? 'CLOSE BONNET' : 'OPEN BONNET (HOOD)';
+    if (btnStageBonnet) btnStageBonnet.classList.toggle('active', isOpen);
+    if (stageBonnetText) stageBonnetText.textContent = isOpen ? 'CLOSE BONNET (HOOD)' : 'OPEN BONNET (HOOD)';
+  };
+
   if (btnBonnet) {
     btnBonnet.addEventListener('click', () => {
       const isOpen = scene3D.toggleBonnet();
-      btnBonnet.classList.toggle('active', isOpen);
-      if (bonnetText) {
-        bonnetText.textContent = isOpen ? 'CLOSE BONNET' : 'OPEN BONNET (HOOD)';
-      }
+      updateBonnetButtons(isOpen);
+    });
+  }
+
+  if (btnStageBonnet) {
+    btnStageBonnet.addEventListener('click', () => {
+      const isOpen = scene3D.toggleBonnet();
+      updateBonnetButtons(isOpen);
     });
   }
 
   const camButtons = document.querySelectorAll('.btn-cam-view:not(.btn-bonnet-action)');
+  const stageButtons = document.querySelectorAll('.btn-stage-action[data-stage-view]');
+
+  const handleCameraChange = (view) => {
+    camButtons.forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    stageButtons.forEach(b => b.classList.toggle('active', b.dataset.stageView === view));
+
+    if (view === 'engine') {
+      scene3D.openBonnet(true);
+      updateBonnetButtons(true);
+      scene3D.setCameraView('engine');
+    } else {
+      scene3D.setCameraView(view);
+      if (!scene3D.isBonnetOpen) {
+        updateBonnetButtons(false);
+      }
+    }
+  };
+
   camButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      const view = btn.dataset.view;
-      if (view) {
-        camButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+      if (btn.dataset.view) handleCameraChange(btn.dataset.view);
+    });
+  });
 
-        if (view === 'engine') {
-          scene3D.openBonnet(true);
-          if (btnBonnet) btnBonnet.classList.add('active');
-          if (bonnetText) bonnetText.textContent = 'CLOSE BONNET';
-          scene3D.setCameraView('engine');
-        } else {
-          scene3D.setCameraView(view);
-          if (btnBonnet && !scene3D.isBonnetOpen) {
-            btnBonnet.classList.remove('active');
-            if (bonnetText) bonnetText.textContent = 'OPEN BONNET (HOOD)';
-          }
-        }
-      }
+  stageButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.stageView) handleCameraChange(btn.dataset.stageView);
     });
   });
 
   const btnRotate = document.getElementById('btnToggleRotate');
-  if (btnRotate) {
-    btnRotate.addEventListener('click', () => {
-      const active = scene3D.toggleAutoRotate();
-      btnRotate.classList.toggle('active', active);
-    });
-  }
+  const btnStageSpin = document.getElementById('btnStageSpin');
+
+  const toggleSpin = () => {
+    const active = scene3D.toggleAutoRotate();
+    if (btnRotate) btnRotate.classList.toggle('active', active);
+    if (btnStageSpin) btnStageSpin.classList.toggle('active', active);
+  };
+
+  if (btnRotate) btnRotate.addEventListener('click', toggleSpin);
+  if (btnStageSpin) btnStageSpin.addEventListener('click', toggleSpin);
 
   // 10. Atelier Paint Swatches (Real-Time 3D Color Change)
   const swatches = document.querySelectorAll('.paint-swatch');

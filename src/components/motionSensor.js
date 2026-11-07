@@ -322,7 +322,7 @@ export class MotionSensor {
     this.badge.className = `current-mode-tag mode-${mode.toLowerCase()}`;
 
     if (this.onModeChanged) {
-      this.onModeChanged(mode, speed, this.totalDistance);
+      this.onModeChanged(mode, speed, this.totalDistance, gForce);
     }
   }
 
@@ -340,10 +340,16 @@ export class MotionSensor {
       this.potholeAlerts++;
       this.potholeEl.textContent = `${this.potholeAlerts} Road Shocks / Potholes Detected!`;
       this.potholeEl.style.color = '#ff3344';
+      if (this.onModeChanged) {
+        this.onModeChanged(this.currentMode, this.currentSpeed, this.totalDistance, 2.85);
+      }
       setTimeout(() => {
         this.gForce = 1.02;
         this.gVal.textContent = '1.02';
         this.potholeEl.style.color = 'var(--color-text-dim)';
+        if (this.onModeChanged) {
+          this.onModeChanged(this.currentMode, this.currentSpeed, this.totalDistance, 1.0);
+        }
       }, 1500);
       return;
     }
