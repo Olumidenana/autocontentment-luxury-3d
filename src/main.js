@@ -115,6 +115,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 10. SolidWorks CAD Reset Assembly Button
+  const btnStageReset = document.getElementById('btnStageReset');
+  if (btnStageReset) {
+    btnStageReset.addEventListener('click', () => {
+      scene3D.resetAllSeparations();
+      updateBonnetButtons(false);
+      handleCameraChange('exterior');
+    });
+  }
+
+  // Listen for First Aid Triage events triggered from direct 3D raycast clicks
+  window.addEventListener('firstAidTriageTriggered', (e) => {
+    updateBonnetButtons(true);
+    if (voiceDiagnostic && voiceDiagnostic.focusComponent) {
+      voiceDiagnostic.focusComponent(e.detail.componentId);
+    }
+  });
+
   const camButtons = document.querySelectorAll('.btn-cam-view:not(.btn-bonnet-action)');
   const stageButtons = document.querySelectorAll('.btn-stage-action[data-stage-view]');
 

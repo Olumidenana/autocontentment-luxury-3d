@@ -347,8 +347,22 @@ export class CarSelector {
         ]
       },
       valmora: {
-        name: "Valmora Bespoke GT",
+        name: "Sports GT & Supercars",
         models: [
+          { 
+            id: "ferrari_portofino", 
+            name: "Ferrari Portofino M (2019–2024)", 
+            engine: "3.9L Twin-Turbo 90° V8 F154 (612 hp)", 
+            redline: 7500, 
+            oemColor: "Rosso Corsa Racing Red (Code FER322)", 
+            oemHex: 0xC41E3A,
+            oemColorFamily: "Rosso Corsa",
+            bodyType: "gt_sports",
+            image: "/images/cars/mercedes_e350.jpg",
+            engineImage: "/images/engines/engine_v6_bay.jpg",
+            knownScams: "High-pressure direct injection rail sensor misdiagnosed as blown cylinder head",
+            spec: "612 bhp • 760 Nm • 8-Speed Dual-Clutch • 320 km/h Grand Tourer"
+          },
           { 
             id: "valmora_gt", 
             name: "Valmora Alba GT 1964 Coachbuilt", 
@@ -360,17 +374,17 @@ export class CarSelector {
             bodyType: "gt_sports",
             image: "/images/cars/mercedes_e350.jpg",
             engineImage: "/images/engines/engine_mercedes_v6.jpg",
-            knownScams: "Dry sump aeration or active exhaust actuator misdiagnosed",
+            knownScams: "Dry sump aeration or active exhaust actuator misdiagnosed as engine knock",
             spec: "610 bhp • 800 Nm • 8-Speed Dual-Clutch • RWD Coachbuilt Grand Tourer"
           }
         ]
       }
     };
 
-    // Default to Mercedes-Benz E350
-    this.selectedBrand = 'mercedes';
-    this.selectedModel = this.carDatabase.mercedes.models[0];
-    this.selectedYear = '2014';
+    // Default to Photorealistic Sports Car (Ferrari Portofino 2019 - SolidWorks & Blender Reference)
+    this.selectedBrand = 'valmora';
+    this.selectedModel = this.carDatabase.valmora.models[0];
+    this.selectedYear = '2019';
 
     this.init();
   }
@@ -379,7 +393,7 @@ export class CarSelector {
     this.container.innerHTML = `
       <div class="car-selector-bar">
         <div class="selector-tag">
-          <span class="selector-icon">🚗</span>
+          <span class="selector-icon">🏎️</span>
           <span>SELECT VEHICLE PROFILE:</span>
         </div>
 
@@ -387,11 +401,11 @@ export class CarSelector {
           <div class="select-group">
             <label>BRAND</label>
             <select id="selectBrand" class="hud-select">
-              <option value="mercedes" selected>Mercedes-Benz (6 Models)</option>
+              <option value="valmora" selected>Sports GT & Supercars (Portofino / Valmora)</option>
+              <option value="mercedes">Mercedes-Benz (6 Models)</option>
               <option value="toyota">Toyota (7 Models)</option>
               <option value="lexus">Lexus (5 Models)</option>
               <option value="honda">Honda (5 Models)</option>
-              <option value="valmora">Valmora Bespoke GT</option>
             </select>
           </div>
 
@@ -406,15 +420,15 @@ export class CarSelector {
             <label>OEM FACTORY PAINT</label>
             <div class="oem-color-preview-badge" id="oemColorBadge">
               <span class="oem-color-dot" id="oemColorDot"></span>
-              <span class="oem-color-name" id="oemColorName">Iridium Silver</span>
+              <span class="oem-color-name" id="oemColorName">Rosso Corsa</span>
             </div>
           </div>
         </div>
 
         <!-- Real-Time Selected Car Badge -->
         <div class="active-car-badge" id="activeCarBadge">
-          <span class="badge-title" id="badgeCarName">Mercedes-Benz E350 (W212 2010–2016)</span>
-          <span class="badge-engine" id="badgeEngineName">3.5L V6 M276 (302 hp)</span>
+          <span class="badge-title" id="badgeCarName">Ferrari Portofino M (2019–2024)</span>
+          <span class="badge-engine" id="badgeEngineName">3.9L Twin-Turbo 90° V8 F154 (612 hp)</span>
         </div>
       </div>
     `;
@@ -426,7 +440,7 @@ export class CarSelector {
     this.badgeCarName = this.container.querySelector('#badgeCarName');
     this.badgeEngineName = this.container.querySelector('#badgeEngineName');
 
-    this.populateModels('mercedes');
+    this.populateModels('valmora');
     this.bindEvents();
     this.updateDisplay();
   }

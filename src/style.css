@@ -1279,6 +1279,78 @@ select option:checked {
   color: rgba(255, 255, 255, 0.4);
 }
 
+.btn-stage-reset {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #fca5a5 !important;
+}
+
+.btn-stage-reset:hover {
+  background: #ef4444 !important;
+  border-color: #f87171 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.7) !important;
+}
+
+.cad-inspect-hint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #7dd3fc;
+  margin-top: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* SolidWorks CAD 3D Component Inspection Tooltip & Toast */
+.scene3d-cad-tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  background: rgba(10, 16, 26, 0.92);
+  border: 1px solid #38bdf8;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.5), inset 0 0 10px rgba(56, 189, 248, 0.2);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  transform: translate(14px, 14px);
+  transition: opacity 0.15s ease;
+}
+
+.scene3d-cad-toast {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: rgba(8, 12, 20, 0.95);
+  border: 1px solid #0C813D;
+  box-shadow: 0 0 28px rgba(12, 129, 61, 0.65), inset 0 0 12px rgba(12, 129, 61, 0.3);
+  backdrop-filter: blur(14px);
+  color: #ffffff;
+  padding: 11px 24px;
+  border-radius: 30px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Editorial Story Cards */
 .section-editorial,
 .section-powertrain,

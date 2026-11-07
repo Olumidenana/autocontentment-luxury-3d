@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { gsap } from 'gsap';
 
 export class Scene3D {
   constructor(canvasContainer) {
@@ -10,7 +11,12 @@ export class Scene3D {
     this.camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     
-    this.currentBodyType = 'sedan'; // 'sedan' | 'mercedes' | 'gt_sports'
+    // Default to the photorealistic Sports Car GT (Ferrari Portofino reference)
+    this.currentBodyType = 'gt_sports'; // 'gt_sports' | 'sedan' | 'mercedes'
+    this.activeBrand = 'valmora';
+    this.activeModelId = 'ferrari_portofino';
+    this.currentPaintColor = 0xC41E3A; // Factory OEM Rosso Corsa Racing Red default
+
     this.carGroup = new THREE.Group();
     this.chassisMeshGroup = new THREE.Group();
     this.bonnetGroup = new THREE.Group();
@@ -22,6 +28,16 @@ export class Scene3D {
     this.isBonnetOpen = false;
     this.autoRotate = false;
     this.activePin = null;
+
+    // SolidWorks CAD Click-to-Separate Registry
+    this.separableComponents = new Map(); // key: Object3D -> { id, label, restPos, targetPos, isSeparated, axis }
+    this.interactiveMeshes = [];
+    this.hoveredComp = null;
+
+    // Raycaster & Pointer
+    this.raycaster = new THREE.Raycaster();
+    this.pointer = new THREE.Vector2();
+    this.pointerDownPos = { x: 0, y: 0, time: 0 };
 
     // Kinematics & Speedometer Sensation
     this.currentSpeedKmh = 0;
@@ -52,9 +68,44 @@ export class Scene3D {
     this.currentCameraTarget = this.cameraTargets.exterior;
     this.currentLookAt = new THREE.Vector3(0, 0.35, 0);
     this.isAutoCameraTargetActive = true;
-    this.currentPaintColor = 0xBAC0C6; // Factory OEM Iridium Silver Metallic default (Mercedes E350)
 
+    this.createFloatingHud();
     this.init();
+  }
+
+  createFloatingHud() {
+    // 1. Hover Tooltip
+    this.tooltipEl = document.getElementById('scene3d-cad-tooltip');
+    if (!this.tooltipEl) {
+      this.tooltipEl = document.createElement('div');
+      this.tooltipEl.id = 'scene3d-cad-tooltip';
+      this.tooltipEl.className = 'scene3d-cad-tooltip';
+      this.tooltipEl.style.display = 'none';
+      document.body.appendChild(this.tooltipEl);
+    }
+
+    // 2. Action Toast Notification
+    this.toastEl = document.getElementById('scene3d-cad-toast');
+    if (!this.toastEl) {
+      this.toastEl = document.createElement('div');
+      this.toastEl.id = 'scene3d-cad-toast';
+      this.toastEl.className = 'scene3d-cad-toast';
+      this.toastEl.style.display = 'none';
+      document.body.appendChild(this.toastEl);
+    }
+  }
+
+  showInspectToast(message, icon = '🔍') {
+    if (!this.toastEl) return;
+    this.toastEl.innerHTML = `<span style="font-size:16px;">${icon}</span><span>${message}</span>`;
+    this.toastEl.style.display = 'flex';
+    this.toastEl.style.opacity = '1';
+
+    if (this._toastTimer) clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      this.toastEl.style.opacity = '0';
+      setTimeout(() => { this.toastEl.style.display = 'none'; }, 300);
+    }, 3800);
   }
 
   init() {
@@ -92,9 +143,9 @@ export class Scene3D {
     this.carGroup.add(this.bonnetGroup);
     this.scene.add(this.carGroup);
 
-    // Load initial authentic intact 3D car model (Mercedes E350)
-    this.loadVehicleModel('sedan');
-    this.buildEngineComponents();
+    // Load initial authentic intact 3D car model (Ferrari Portofino GT Sports Car default)
+    this.loadVehicleModel('gt_sports');
+    this.buildEngineComponents('valmora', 'ferrari_portofino');
     this.buildBonnetMesh();
     this.buildDustSheet();
     this.setupEvents();
@@ -163,24 +214,80 @@ export class Scene3D {
   }
 
   /**
+   * Registers a separable 3D component (wheel, glass canopy, etc.) for SolidWorks CAD click-to-separate mechanics
+   */
+  registerSeparableComponent(object, id, label, separationVector) {
+    const comp = {
+      object,
+      id,
+      label,
+      separationVector,
+      restPos: object.position.clone(),
+      isSeparated: false
+    };
+    this.separableComponents.set(id, comp);
+
+    object.traverse((child) => {
+      if (child.isMesh) {
+        child.userData.separableComp = comp;
+        this.interactiveMeshes.push(child);
+      }
+    });
+  }
+
+  /**
+   * Resets all separated components smoothly back into the intact chassis assembly
+   */
+  resetAllSeparations() {
+    let count = 0;
+    this.separableComponents.forEach((comp) => {
+      if (comp.isSeparated) {
+        comp.isSeparated = false;
+        count++;
+        gsap.to(comp.object.position, {
+          x: comp.restPos.x,
+          y: comp.restPos.y,
+          z: comp.restPos.z,
+          duration: 0.75,
+          ease: 'power2.inOut'
+        });
+      }
+    });
+
+    if (this.isBonnetOpen) {
+      this.openBonnet(false);
+      count++;
+    }
+
+    this.setCameraView('exterior');
+    this.showInspectToast('🧲 Assembly Reset: All components seated to factory specifications.', '🧲');
+    return count;
+  }
+
+  /**
    * Loads high-detail production 3D vehicle models completely intact
-   * (Executive Sedan, Mercedes Luxury SUV, Coachbuilt Sports GT)
+   * (Coachbuilt Sports GT Ferrari Portofino, Executive Sedan M-Sport, Mercedes Luxury SUV)
    */
   loadVehicleModel(type) {
-    let modelPath = '/models/sedan.glb';
-    let scale = 1.05;
+    let modelPath = '/models/ferrari.glb';
+    let scale = 1.0;
     let rotationY = -Math.PI / 2;
-    let posY = -0.48;
+    let posY = -0.50;
 
     if (type === 'mercedes') {
       modelPath = '/models/mercedes.glb';
       scale = 0.88;
       rotationY = Math.PI / 2;
       posY = -0.50;
+    } else if (type === 'sedan') {
+      modelPath = '/models/sedan.glb';
+      scale = 1.05;
+      rotationY = -Math.PI / 2;
+      posY = -0.48;
     } else if (type === 'gt_sports' || type === 'ferrari') {
       modelPath = '/models/ferrari.glb';
       scale = 1.0;
-      rotationY = 0;
+      rotationY = -Math.PI / 2;
       posY = -0.50;
     }
 
@@ -193,13 +300,59 @@ export class Scene3D {
       }
       this.bodyMaterials = [];
       this.wheels = [];
+      this.separableComponents.clear();
+      this.interactiveMeshes = [];
+
+      // Re-register bonnet meshes in interactive list
+      this.bonnetGroup.traverse((child) => {
+        if (child.isMesh) {
+          child.userData.isBonnet = true;
+          this.interactiveMeshes.push(child);
+        }
+      });
+
+      // Re-register first-aid pin meshes in interactive list
+      Object.values(this.firstAidPins).forEach((pin) => {
+        pin.traverse((child) => {
+          if (child.isMesh) {
+            child.userData.firstAidPin = pin;
+            this.interactiveMeshes.push(child);
+          }
+        });
+      });
 
       const model = gltf.scene;
       model.scale.set(scale, scale, scale);
       model.position.set(0, posY, 0);
       model.rotation.y = rotationY;
 
-      // Ensure every mesh component is intact, rendered, and shaded with authentic factory materials
+      // 1. Identify Separable Parent Groups in Ferrari / Sports GT
+      model.traverse((child) => {
+        const nodeName = (child.name || '').toLowerCase();
+
+        // Ferrari Isolated Wheel Groups
+        if (nodeName === 'wheel_fl') {
+          this.registerSeparableComponent(child, 'wheel_fl', 'Front Left Wheel & Brembo Carbon-Ceramic Caliper', new THREE.Vector3(-1.35, 0, 0));
+        } else if (nodeName === 'wheel_fr') {
+          this.registerSeparableComponent(child, 'wheel_fr', 'Front Right Wheel & Brembo Carbon-Ceramic Caliper', new THREE.Vector3(1.35, 0, 0));
+        } else if (nodeName === 'wheel_rl') {
+          this.registerSeparableComponent(child, 'wheel_rl', 'Rear Left Wheel & Ventilated Disc', new THREE.Vector3(-1.35, 0, 0));
+        } else if (nodeName === 'wheel_rr') {
+          this.registerSeparableComponent(child, 'wheel_rr', 'Rear Right Wheel & Ventilated Disc', new THREE.Vector3(1.35, 0, 0));
+        } else if (nodeName === 'glass') {
+          this.registerSeparableComponent(child, 'glass', 'Aerodynamic Cockpit Glass Canopy', new THREE.Vector3(0, 1.4, 0));
+        } else if (nodeName.includes('wheel front l') || nodeName.includes('front l_47')) {
+          this.registerSeparableComponent(child, 'wheel_fl', 'Front Left Wheel Assembly', new THREE.Vector3(-1.35, 0, 0));
+        } else if (nodeName.includes('wheel front r') || nodeName.includes('front r_')) {
+          this.registerSeparableComponent(child, 'wheel_fr', 'Front Right Wheel Assembly', new THREE.Vector3(1.35, 0, 0));
+        } else if (nodeName.includes('wheel rear l') || nodeName.includes('rear l_')) {
+          this.registerSeparableComponent(child, 'wheel_rl', 'Rear Left Wheel Assembly', new THREE.Vector3(-1.35, 0, 0));
+        } else if (nodeName.includes('wheel rear r') || nodeName.includes('rear r_')) {
+          this.registerSeparableComponent(child, 'wheel_rr', 'Rear Right Wheel Assembly', new THREE.Vector3(1.35, 0, 0));
+        }
+      });
+
+      // 2. Material Shading and Mesh Registering
       model.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -208,7 +361,7 @@ export class Scene3D {
           const matName = child.material && child.material.name ? child.material.name.toLowerCase() : '';
           const nodeName = child.name ? child.name.toLowerCase() : '';
 
-          // 1. Identify OEM Paint Panels
+          // Identify OEM Paint Panels
           if (
             matName.includes('body') || 
             matName.includes('carpaint') || 
@@ -278,9 +431,14 @@ export class Scene3D {
 
   /**
    * Constructs the Roadside First-Aid Engine Bay under the hood
-   * with 12V Battery, Radiator Coolant Cap, Oil Dipstick, and Brake Fluid Reservoir
+   * tailored to the real-world mechanical characteristics of each brand/model:
+   * - Ferrari / Sports GT: 3.9L/4.0L Twin-Turbo Hot-Vee V8 with Rosso Corsa crackle valve covers, twin turbos, carbon plenum.
+   * - Mercedes-Benz: AMG 4.0L V8 Biturbo / 3.5L V6 with dark obsidian block and silver intake plenums.
+   * - Toyota / Lexus: Dual VVT-i 3.5L V6 composite manifold cover with hybrid/sport accents.
+   * - Honda: Earth Dreams i-VTEC red stripe performance cover.
+   * All configurations feature the 4 interactive first-aid checkpoints.
    */
-  buildEngineComponents() {
+  buildEngineComponents(brand = this.activeBrand, modelId = this.activeModelId) {
     while (this.engineBayGroup.children.length > 0) {
       this.engineBayGroup.remove(this.engineBayGroup.children[0]);
     }
@@ -288,14 +446,56 @@ export class Scene3D {
 
     this.engineBayGroup.position.set(1.2, 0.0, 0);
 
-    // 1. Engine Block (Die-Cast Aluminum)
-    const blockMat = new THREE.MeshStandardMaterial({ color: 0x2b3340, metalness: 0.92, roughness: 0.28 });
-    const block = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.45, 0.68), blockMat);
+    const isSportsGT = brand === 'valmora' || this.currentBodyType === 'gt_sports' || modelId.includes('ferrari');
+    const isMercedes = brand === 'mercedes';
+    const isToyotaLexus = brand === 'toyota' || brand === 'lexus';
+    const isHonda = brand === 'honda';
+
+    // 1. Engine Block (Die-Cast Alloy tailored per brand)
+    let blockColor = 0x242830;
+    if (isSportsGT) blockColor = 0x1e2127;
+    if (isMercedes) blockColor = 0x1f242d;
+    if (isToyotaLexus) blockColor = 0x181c22;
+    if (isHonda) blockColor = 0x262b33;
+
+    const blockMat = new THREE.MeshStandardMaterial({ color: blockColor, metalness: 0.92, roughness: 0.28 });
+    const block = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.46, 0.70), blockMat);
     block.position.set(0, 0.12, 0);
     this.engineBayGroup.add(block);
 
-    // 2. Dual Angled Valve Covers (V-Configuration)
-    const valveCoverMat = new THREE.MeshStandardMaterial({ color: 0x18202c, metalness: 0.88, roughness: 0.18 });
+    // 2. Cylinder Head Valve Covers
+    let valveCoverColor = 0x18202c;
+    let valveRoughness = 0.18;
+    let valveMetalness = 0.88;
+
+    if (isSportsGT) {
+      // Ferrari / Valmora GT Rosso Corsa crackle red
+      valveCoverColor = 0xc41e3a;
+      valveRoughness = 0.32;
+      valveMetalness = 0.80;
+    } else if (isMercedes) {
+      // Mercedes AMG graphite & silver
+      valveCoverColor = 0x334155;
+      valveRoughness = 0.15;
+      valveMetalness = 0.94;
+    } else if (isToyotaLexus) {
+      // Toyota/Lexus composite charcoal
+      valveCoverColor = 0x0f172a;
+      valveRoughness = 0.40;
+      valveMetalness = 0.50;
+    } else if (isHonda) {
+      // Honda gunmetal with red racing accent
+      valveCoverColor = 0xdc2626;
+      valveRoughness = 0.25;
+      valveMetalness = 0.82;
+    }
+
+    const valveCoverMat = new THREE.MeshStandardMaterial({
+      color: valveCoverColor,
+      metalness: valveMetalness,
+      roughness: valveRoughness
+    });
+
     const leftValve = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.14, 0.25), valveCoverMat);
     leftValve.position.set(0, 0.38, 0.24);
     leftValve.rotation.x = 0.38;
@@ -306,11 +506,25 @@ export class Scene3D {
     rightValve.rotation.x = -0.38;
     this.engineBayGroup.add(rightValve);
 
-    // 3. Polished Chrome Dual Intake Plenum Runners
+    // 3. Intake Plenum & Induction Runners
     const chromeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.98, roughness: 0.06 });
     const plenum = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.14, 0.32), chromeMat);
     plenum.position.set(0, 0.46, 0);
     this.engineBayGroup.add(plenum);
+
+    // Twin Turbochargers for Sports GT / Mercedes AMG
+    if (isSportsGT || isMercedes) {
+      const turboMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.95, roughness: 0.12 });
+      
+      const leftTurbo = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.16, 24), turboMat);
+      leftTurbo.rotation.z = Math.PI / 2;
+      leftTurbo.position.set(0.32, 0.28, 0.42);
+      this.engineBayGroup.add(leftTurbo);
+
+      const rightTurbo = leftTurbo.clone();
+      rightTurbo.position.z = -0.42;
+      this.engineBayGroup.add(rightTurbo);
+    }
 
     // 4. FIRST-AID 3D COMPONENT: 12V Starter Battery & Terminals
     const batteryGroup = new THREE.Group();
@@ -418,17 +632,23 @@ export class Scene3D {
     // Sculpted Bonnet Lid
     const bonnetLid = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.03, 1.45), bonnetMat);
     bonnetLid.position.set(0.82, 0, 0);
+    bonnetLid.userData.isBonnet = true;
     this.bonnetGroup.add(bonnetLid);
+    this.interactiveMeshes.push(bonnetLid);
 
     // Center Crease Lines
     const creaseMat = new THREE.MeshStandardMaterial({ color: 0x111317, metalness: 0.5, roughness: 0.5 });
     const creaseLeft = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.02, 0.02), creaseMat);
     creaseLeft.position.set(0.8, 0.025, 0.25);
+    creaseLeft.userData.isBonnet = true;
     this.bonnetGroup.add(creaseLeft);
+    this.interactiveMeshes.push(creaseLeft);
 
     const creaseRight = creaseLeft.clone();
     creaseRight.position.z = -0.25;
+    creaseRight.userData.isBonnet = true;
     this.bonnetGroup.add(creaseRight);
+    this.interactiveMeshes.push(creaseRight);
   }
 
   addFirstAidPin(id, name, localPos, hexColor) {
@@ -439,20 +659,26 @@ export class Scene3D {
       new THREE.MeshBasicMaterial({ color: hexColor, side: THREE.DoubleSide })
     );
     ring.rotateX(Math.PI / 2);
+    ring.userData.firstAidPin = pinGroup;
     pinGroup.add(ring);
+    this.interactiveMeshes.push(ring);
 
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(0.04, 16, 16),
       new THREE.MeshBasicMaterial({ color: 0xffffff })
     );
+    sphere.userData.firstAidPin = pinGroup;
     pinGroup.add(sphere);
+    this.interactiveMeshes.push(sphere);
 
     const stem = new THREE.Mesh(
       new THREE.CylinderGeometry(0.01, 0.01, 0.15, 8),
       new THREE.MeshBasicMaterial({ color: hexColor })
     );
     stem.position.y = 0.08;
+    stem.userData.firstAidPin = pinGroup;
     pinGroup.add(stem);
+    this.interactiveMeshes.push(stem);
 
     pinGroup.position.set(...localPos);
     pinGroup.userData = { id, name };
@@ -493,20 +719,27 @@ export class Scene3D {
       this.currentPaintColor = oemHex;
       this.setCarPaint(oemHex);
     }
+    this.activeBrand = brand;
+    this.activeModelId = modelId;
 
-    let bodyType = 'sedan';
+    let bodyType = 'gt_sports';
     if (modelObj && modelObj.bodyType) {
       bodyType = modelObj.bodyType;
-    } else if (modelId.includes('prado') || modelId.includes('rx350') || modelId.includes('gle') || modelId.includes('g63') || modelId.includes('highlander') || modelId.includes('gx460') || modelId.includes('crv')) {
-      bodyType = 'mercedes';
     } else if (modelId.includes('valmora') || modelId.includes('ferrari')) {
       bodyType = 'gt_sports';
+    } else if (modelId.includes('prado') || modelId.includes('rx350') || modelId.includes('gle') || modelId.includes('g63') || modelId.includes('highlander') || modelId.includes('gx460') || modelId.includes('crv')) {
+      bodyType = 'mercedes';
+    } else {
+      bodyType = 'sedan';
     }
 
     if (bodyType !== this.currentBodyType) {
       this.currentBodyType = bodyType;
       this.loadVehicleModel(bodyType);
     }
+
+    // Rebuild engine bay with brand-specific mechanical components
+    this.buildEngineComponents(brand, modelId);
   }
 
   /**
@@ -624,6 +857,111 @@ export class Scene3D {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const dom = this.renderer.domElement;
+
+    // Pointer move for Raycasting & Tooltip
+    dom.addEventListener('pointermove', (e) => {
+      this.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      this.pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      this.raycaster.setFromCamera(this.pointer, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        dom.style.cursor = 'pointer';
+
+        if (hit.userData.separableComp) {
+          const comp = hit.userData.separableComp;
+          this.tooltipEl.textContent = `🔍 ${comp.label} (Click to ${comp.isSeparated ? 'Lock Assembly' : 'Separate & Inspect'})`;
+          this.tooltipEl.style.display = 'block';
+          this.tooltipEl.style.left = `${e.clientX + 14}px`;
+          this.tooltipEl.style.top = `${e.clientY + 14}px`;
+        } else if (hit.userData.isBonnet) {
+          this.tooltipEl.textContent = `⚙️ Sculpted Aluminium Bonnet (Click to ${this.isBonnetOpen ? 'Close' : 'Open'} Engine Bay)`;
+          this.tooltipEl.style.display = 'block';
+          this.tooltipEl.style.left = `${e.clientX + 14}px`;
+          this.tooltipEl.style.top = `${e.clientY + 14}px`;
+        } else if (hit.userData.firstAidPin) {
+          const pin = hit.userData.firstAidPin;
+          this.tooltipEl.textContent = `🚑 ${pin.userData.name} (Click for Roadside Triage)`;
+          this.tooltipEl.style.display = 'block';
+          this.tooltipEl.style.left = `${e.clientX + 14}px`;
+          this.tooltipEl.style.top = `${e.clientY + 14}px`;
+        }
+      } else {
+        dom.style.cursor = 'default';
+        if (this.tooltipEl) this.tooltipEl.style.display = 'none';
+      }
+    });
+
+    // Pointer down for Drag vs Click discrimination
+    dom.addEventListener('pointerdown', (e) => {
+      this.pointerDownPos = { x: e.clientX, y: e.clientY, time: performance.now() };
+    });
+
+    // Pointer up for SolidWorks CAD Click-to-Separate
+    dom.addEventListener('pointerup', (e) => {
+      const dist = Math.hypot(e.clientX - this.pointerDownPos.x, e.clientY - this.pointerDownPos.y);
+      const elapsed = performance.now() - this.pointerDownPos.time;
+
+      // Only treat as click if pointer didn't drag to orbit
+      if (dist < 6 && elapsed < 400) {
+        this.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+        this.pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        this.raycaster.setFromCamera(this.pointer, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
+
+        if (intersects.length > 0) {
+          const hit = intersects[0].object;
+
+          // 1. Separable Component Click (Wheels, Glass Canopy)
+          if (hit.userData.separableComp) {
+            const comp = hit.userData.separableComp;
+            comp.isSeparated = !comp.isSeparated;
+
+            const targetPos = comp.isSeparated 
+              ? comp.restPos.clone().add(comp.separationVector) 
+              : comp.restPos.clone();
+
+            gsap.to(comp.object.position, {
+              x: targetPos.x,
+              y: targetPos.y,
+              z: targetPos.z,
+              duration: 0.85,
+              ease: comp.isSeparated ? 'power2.out' : 'power2.inOut'
+            });
+
+            this.showInspectToast(
+              comp.isSeparated 
+                ? `🔍 Separated ${comp.label} for SolidWorks CAD inspection.` 
+                : `🔒 Re-seated ${comp.label} into factory assembly.`
+            );
+          }
+          // 2. Bonnet Click
+          else if (hit.userData.isBonnet) {
+            const open = this.toggleBonnet();
+            this.showInspectToast(
+              open 
+                ? '⚙️ Bonnet opened: Inspecting real-world engine & first-aid triage checkpoints.' 
+                : '⚙️ Bonnet closed.'
+            );
+          }
+          // 3. First-Aid Pin Click
+          else if (hit.userData.firstAidPin) {
+            const pin = hit.userData.firstAidPin;
+            this.focusFirstAidComponent(pin.userData.id);
+            this.showInspectToast(`🚑 First-Aid Checkpoint: ${pin.userData.name}`, '🚑');
+
+            window.dispatchEvent(new CustomEvent('firstAidTriageTriggered', {
+              detail: { componentId: pin.userData.id, name: pin.userData.name }
+            }));
+          }
+        }
+      }
     });
   }
 
