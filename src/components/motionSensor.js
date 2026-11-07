@@ -5,7 +5,7 @@ export class MotionSensor {
     
     this.isTracking = false;
     this.watchId = null;
-    this.currentMode = 'STATIONARY'; // 'STATIONARY' | 'WALKING' | 'RUNNING' | 'CAR_DRIVING'
+    this.currentMode = 'STATIONARY';
     this.currentSpeed = 0; // km/h
     this.totalDistance = 0; // meters
     this.lastPosition = null;
@@ -13,31 +13,43 @@ export class MotionSensor {
     this.gForce = 1.0;
     this.potholeAlerts = 0;
     this.mockInterval = null;
+    this.stepCount = 0;
+    this.lastStepTime = 0;
 
     this.init();
   }
 
   init() {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
     this.container.innerHTML = `
       <div class="motion-sensor-card">
         <div class="sensor-header">
           <div class="sensor-badge">
             <span class="pulse-indicator"></span>
-            <span>INTELLIGENT KINEMATICS & MOTION SENSOR</span>
+            <span>INTELLIGENT KINEMATICS & SENSOR FUSION</span>
           </div>
-          <h3 class="sensor-title">Real-Time Vehicle vs. Human Motion Detection</h3>
+          <h3 class="sensor-title">Real-Time Speedometer & Locomotion Detector</h3>
           <p class="sensor-desc">
-            How your phone knows you're in a car versus walking or running: Human locomotion produces a rhythmic 1.8–3.0 Hz vertical bouncing cadence under 15 km/h. A moving car produces sustained planar velocity (>20 km/h) without footstep cadence, accompanied by continuous high-frequency driveline vibration and road shock impulses.
+            Accurately tracks your velocity, distance traversed, and distinguishes between human walking, running, and car driving using satellite GPS and 3D accelerometer motion sensors.
           </p>
+
+          <!-- Hardware Device Notice -->
+          <div class="device-sensor-status" id="deviceSensorStatus">
+            ${isMobile 
+              ? '📱 Mobile Device Detected — Native Hardware GPS & Gyro Sensors Available.' 
+              : '💻 PC / Laptop Detected — Laptops lack satellite GPS chips (use Wi-Fi or simulation below to test walking/driving).'
+            }
+          </div>
         </div>
 
         <!-- Live Mode Badge -->
         <div class="mode-status-container">
           <div class="current-mode-tag" id="motionModeBadge">
             <span class="mode-icon" id="motionModeIcon">🛑</span>
-            <span class="mode-name" id="motionModeName">STATIONARY / DESK</span>
+            <span class="mode-name" id="motionModeName">STATIONARY</span>
           </div>
-          <div class="mode-confidence" id="motionConfidence">Confidence: 99.8% (0 km/h)</div>
+          <div class="mode-confidence" id="motionConfidence">Telemetry: 0.0 km/h (At rest)</div>
         </div>
 
         <!-- Telemetry Meters Grid -->
@@ -56,25 +68,25 @@ export class MotionSensor {
 
           <!-- Total Distance Moved -->
           <div class="meter-box">
-            <div class="meter-lbl">DISTANCE MOVED</div>
+            <div class="meter-lbl">DISTANCE TRAVERSED</div>
             <div class="meter-val-row">
               <span class="meter-number" id="sensorDistVal">0.00</span>
               <span class="meter-unit">km</span>
             </div>
-            <div class="meter-sub" id="sensorMetersVal">0 meters traversed</div>
+            <div class="meter-sub" id="sensorMetersVal">0 meters accumulated</div>
           </div>
 
-          <!-- Locomotion Cadence vs Chassis Vibration -->
+          <!-- Vertical Footstep Cadence -->
           <div class="meter-box">
-            <div class="meter-lbl">VERTICAL CADENCE</div>
+            <div class="meter-lbl">STEP CADENCE</div>
             <div class="meter-val-row">
               <span class="meter-number" id="sensorCadenceVal">0.0</span>
-              <span class="meter-unit">Hz (steps/s)</span>
+              <span class="meter-unit">Hz</span>
             </div>
-            <div class="meter-sub" id="cadenceClass">No human footfall</div>
+            <div class="meter-sub" id="cadenceClass">0 steps detected</div>
           </div>
 
-          <!-- G-Force Shock (Pothole Detector) -->
+          <!-- G-Force Shock & Pothole Alert -->
           <div class="meter-box">
             <div class="meter-lbl">CHASSIS G-FORCE</div>
             <div class="meter-val-row">
@@ -85,44 +97,19 @@ export class MotionSensor {
           </div>
         </div>
 
-        <!-- Sensor Fusion Logic Explainer -->
-        <div class="sensor-fusion-breakdown">
-          <div class="fusion-step">
-            <span class="step-num">1</span>
-            <div class="step-info">
-              <strong>WALKING (3 – 6 km/h):</strong> 
-              Rhythmic sinusoidal acceleration peaks at 1.8 – 2.0 Hz from heel-to-toe contact.
-            </div>
-          </div>
-          <div class="fusion-step">
-            <span class="step-num">2</span>
-            <div class="step-info">
-              <strong>RUNNING (7 – 18 km/h):</strong> 
-              Cadence increases to 2.4 – 3.2 Hz with vertical G-force oscillations up to 1.8G.
-            </div>
-          </div>
-          <div class="fusion-step">
-            <span class="step-num">3</span>
-            <div class="step-info">
-              <strong>CAR IN-MOTION (20 – 160+ km/h):</strong> 
-              Zero step cadence, sustained linear GPS acceleration, continuous chassis micro-harmonics, and sharp >2.0G shocks when hitting road craters.
-            </div>
-          </div>
-        </div>
-
         <!-- Actions: Real Hardware Sensor or Test Simulator -->
         <div class="sensor-actions">
           <button id="btnToggleRealSensor" class="btn-sensor-primary">
-            <span>START LIVE GPS & ACCELEROMETER TRACKING</span>
+            <span>ACTIVATE LIVE GPS SENSOR TRACKING</span>
           </button>
           
           <div class="simulator-buttons">
-            <span class="sim-label">SIMULATE MOTION:</span>
+            <span class="sim-label">OR SIMULATE TO TEST IN SCREEN RECORDING:</span>
             <button class="btn-sim" data-sim="walking">🚶 Walk (4.5 km/h)</button>
             <button class="btn-sim" data-sim="running">🏃 Run (11.0 km/h)</button>
-            <button class="btn-sim" data-sim="car_city">🚗 Drive (45 km/h)</button>
-            <button class="btn-sim" data-sim="car_highway">🏎️ Highway (110 km/h)</button>
-            <button class="btn-sim" data-sim="pothole">⚠️ Pothole Hit (2.8G)</button>
+            <button class="btn-sim" data-sim="car_city">🚗 Drive (48 km/h)</button>
+            <button class="btn-sim" data-sim="car_highway">🏎️ Highway (115 km/h)</button>
+            <button class="btn-sim" data-sim="pothole">⚠️ Hit Pothole (2.8G)</button>
             <button class="btn-sim" data-sim="stop">🛑 Stop</button>
           </div>
         </div>
@@ -142,6 +129,7 @@ export class MotionSensor {
     this.gVal = this.container.querySelector('#sensorGVal');
     this.potholeEl = this.container.querySelector('#potholeCount');
     this.btnToggleReal = this.container.querySelector('#btnToggleRealSensor');
+    this.deviceStatus = this.container.querySelector('#deviceSensorStatus');
 
     this.bindEvents();
   }
@@ -155,7 +143,6 @@ export class MotionSensor {
       }
     });
 
-    // Simulator Buttons
     this.container.querySelectorAll('.btn-sim').forEach(btn => {
       btn.addEventListener('click', () => {
         const sim = btn.dataset.sim;
@@ -166,42 +153,46 @@ export class MotionSensor {
 
   startRealTracking() {
     this.isTracking = true;
-    this.btnToggleReal.textContent = 'STOP REAL HARDWARE TRACKING';
+    this.btnToggleReal.textContent = 'STOP SENSOR TRACKING';
     this.btnToggleReal.classList.add('tracking');
 
-    // 1. GPS Geolocation Velocity & Distance Calculation
     if ('geolocation' in navigator) {
+      this.deviceStatus.textContent = "📡 GPS Sensor Acquired: Reading live satellite positions...";
+      this.deviceStatus.style.color = "#0C813D";
+
       this.watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
-          const speedMs = pos.coords.speed; // speed in m/s if available
-          let speedKmh = speedMs ? speedMs * 3.6 : 0;
+          const accuracy = pos.coords.accuracy;
+          let speedKmh = 0;
 
-          if (this.lastPosition) {
-            const d = this.calculateHaversine(
-              this.lastPosition.lat, this.lastPosition.lon,
-              lat, lon
-            );
-            if (d > 1.5) { // filter GPS jitter (< 1.5m)
+          if (pos.coords.speed !== null && !isNaN(pos.coords.speed) && pos.coords.speed > 0) {
+            speedKmh = pos.coords.speed * 3.6;
+          } else if (this.lastPosition) {
+            const d = this.calculateHaversine(this.lastPosition.lat, this.lastPosition.lon, lat, lon);
+            const timeDiff = (pos.timestamp - this.lastPosition.timestamp) / 1000;
+            if (timeDiff > 0.5) {
               this.totalDistance += d;
-              const timeDiff = (pos.timestamp - this.lastPosition.timestamp) / 1000;
-              if (timeDiff > 0 && !speedMs) {
-                speedKmh = (d / timeDiff) * 3.6;
-              }
+              speedKmh = (d / timeDiff) * 3.6;
             }
           }
 
           this.lastPosition = { lat, lon, timestamp: pos.timestamp };
+          this.deviceStatus.textContent = `📡 GPS Active (Accuracy: ±${accuracy.toFixed(1)}m, Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)})`;
+
           this.updateSpeedAndDistance(speedKmh);
           this.evaluateSensorFusion(speedKmh, this.stepCadence, this.gForce);
         },
-        (err) => console.warn("GPS watch error:", err.message),
-        { enableHighAccuracy: true, maximumAge: 1000 }
+        (err) => {
+          this.deviceStatus.textContent = `⚠️ GPS Error: ${err.message}. (Ensure location permission is enabled in browser)`;
+          this.deviceStatus.style.color = "#ff4444";
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
       );
     }
 
-    // 2. Accelerometer Cadence & G-Force Detection
+    // Accelerometer & Gyro Pedometer
     if (window.DeviceMotionEvent) {
       window.addEventListener('devicemotion', (e) => {
         if (!e.accelerationIncludingGravity) return;
@@ -209,29 +200,38 @@ export class MotionSensor {
         const totalG = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z) / 9.81;
         this.gForce = totalG;
 
-        // Check for sudden pothole/crater shock impulse
-        if (totalG > 1.8 && this.currentSpeed > 20) {
-          this.potholeAlerts++;
-          this.potholeEl.textContent = `${this.potholeAlerts} Road Shocks / Potholes Detected`;
+        const now = performance.now();
+        // Detect footstep peak
+        if (totalG > 1.25 && (now - this.lastStepTime) > 300) {
+          this.stepCount++;
+          this.lastStepTime = now;
+          this.stepCadence = 1.9;
+          this.cadenceVal.textContent = this.stepCadence.toFixed(1);
+          this.cadenceClass.textContent = `${this.stepCount} human steps tracked`;
+
+          // If GPS is stationary (indoor walking), accumulate 0.75m per step!
+          if (this.currentSpeed < 3.0) {
+            this.totalDistance += 0.75;
+            this.updateSpeedAndDistance(4.5);
+            this.evaluateSensorFusion(4.5, this.stepCadence, this.gForce);
+          }
         }
 
-        // Estimate vertical cadence (walking vs running)
-        if (Math.abs(acc.y) > 1.5 && this.currentSpeed < 18) {
-          this.stepCadence = this.currentSpeed > 7 ? 2.8 : 1.9;
-        } else {
-          this.stepCadence = 0;
+        // Pothole shock
+        if (totalG > 1.9 && this.currentSpeed > 20) {
+          this.potholeAlerts++;
+          this.potholeEl.textContent = `${this.potholeAlerts} Road Shocks / Potholes Detected`;
+          this.potholeEl.style.color = '#ff3344';
         }
 
         this.gVal.textContent = totalG.toFixed(2);
-        this.cadenceVal.textContent = this.stepCadence.toFixed(1);
-        this.evaluateSensorFusion(this.currentSpeed, this.stepCadence, this.gForce);
       }, { passive: true });
     }
   }
 
   stopRealTracking() {
     this.isTracking = false;
-    this.btnToggleReal.textContent = 'START LIVE GPS & ACCELEROMETER TRACKING';
+    this.btnToggleReal.textContent = 'ACTIVATE LIVE GPS SENSOR TRACKING';
     this.btnToggleReal.classList.remove('tracking');
     if (this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
@@ -240,7 +240,7 @@ export class MotionSensor {
   }
 
   calculateHaversine(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // Earth radius in meters
+    const R = 6371e3;
     const phi1 = (lat1 * Math.PI) / 180;
     const phi2 = (lat2 * Math.PI) / 180;
     const dPhi = ((lat2 - lat1) * Math.PI) / 180;
@@ -250,7 +250,7 @@ export class MotionSensor {
               Math.cos(phi1) * Math.cos(phi2) *
               Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in meters
+    return R * c;
   }
 
   updateSpeedAndDistance(speedKmh) {
@@ -261,47 +261,41 @@ export class MotionSensor {
 
     const km = this.totalDistance / 1000;
     this.distVal.textContent = km.toFixed(2);
-    this.metersVal.textContent = `${Math.round(this.totalDistance)} meters traversed`;
+    this.metersVal.textContent = `${Math.round(this.totalDistance)} meters accumulated`;
   }
 
   evaluateSensorFusion(speed, cadence, gForce) {
     let mode = 'STATIONARY';
     let icon = '🛑';
-    let name = 'STATIONARY / DESK';
-    let conf = '99.8% (Vehicle stationary)';
+    let name = 'STATIONARY';
+    let conf = '0.0 km/h (At rest)';
 
     if (speed < 1.0) {
       mode = 'STATIONARY';
       icon = '🛑';
-      name = 'STATIONARY / DESK';
-      conf = '99.8% (Zero displacement)';
-      this.cadenceClass.textContent = 'No human footfall';
+      name = 'STATIONARY';
+      conf = 'Zero displacement';
     } else if (speed >= 1.0 && speed <= 6.5) {
       mode = 'WALKING';
       icon = '🚶';
       name = 'HUMAN WALKING';
-      conf = `98.4% (${speed.toFixed(1)} km/h with 1.8–2.0 Hz footstep cadence)`;
-      this.cadenceClass.textContent = 'Active walking cadence';
+      conf = `${speed.toFixed(1)} km/h (1.8–2.0 Hz cadence)`;
     } else if (speed > 6.5 && speed <= 18.0) {
       mode = 'RUNNING';
       icon = '🏃';
       name = 'HUMAN RUNNING / JOGGING';
-      conf = `96.7% (${speed.toFixed(1)} km/h with 2.8 Hz footstep cadence)`;
-      this.cadenceClass.textContent = 'High-frequency run cadence';
+      conf = `${speed.toFixed(1)} km/h (2.8 Hz cadence)`;
     } else {
       mode = 'CAR_DRIVING';
       icon = '🚗';
       name = 'CAR IN-MOTION (DRIVING)';
-      conf = `99.9% (${speed.toFixed(1)} km/h sustained velocity, zero foot cadence)`;
-      this.cadenceClass.textContent = 'Vehicle chassis coupled';
+      conf = `${speed.toFixed(1)} km/h (Sustained velocity, 0 Hz footfalls)`;
     }
 
     this.currentMode = mode;
     this.badgeIcon.textContent = icon;
     this.badgeName.textContent = name;
-    this.confidenceEl.textContent = `Confidence: ${conf}`;
-
-    // Styling
+    this.confidenceEl.textContent = `Telemetry: ${conf}`;
     this.badge.className = `current-mode-tag mode-${mode.toLowerCase()}`;
 
     if (this.onModeChanged) {
@@ -329,8 +323,8 @@ export class MotionSensor {
       this.potholeEl.textContent = `${this.potholeAlerts} Road Shocks / Potholes Detected!`;
       this.potholeEl.style.color = '#ff3344';
       setTimeout(() => {
-        this.gForce = 1.05;
-        this.gVal.textContent = '1.05';
+        this.gForce = 1.02;
+        this.gVal.textContent = '1.02';
         this.potholeEl.style.color = 'var(--color-text-dim)';
       }, 1500);
       return;
@@ -345,21 +339,19 @@ export class MotionSensor {
       targetSpeed = 48.0;
       targetCadence = 0.0;
     } else if (simType === 'car_highway') {
-      targetSpeed = 112.0;
+      targetSpeed = 115.0;
       targetCadence = 0.0;
     }
 
     this.mockInterval = setInterval(() => {
-      // Add slight organic speed jitter
-      const currentSimSpeed = targetSpeed + (Math.random() - 0.5) * 3;
-      // Add incremental distance: distance = speed (m/s) * 0.5s
+      const currentSimSpeed = targetSpeed + (Math.random() - 0.5) * 2;
       const deltaMeters = (currentSimSpeed / 3.6) * 0.5;
       this.totalDistance += deltaMeters;
 
       this.updateSpeedAndDistance(currentSimSpeed);
       this.stepCadence = targetCadence > 0 ? targetCadence + (Math.random() - 0.5) * 0.2 : 0;
       this.cadenceVal.textContent = this.stepCadence.toFixed(1);
-      this.gVal.textContent = (1.0 + (Math.random() - 0.5) * 0.15).toFixed(2);
+      this.gVal.textContent = (1.0 + (Math.random() - 0.5) * 0.1).toFixed(2);
 
       this.evaluateSensorFusion(currentSimSpeed, this.stepCadence, 1.0);
     }, 500);

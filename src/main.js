@@ -33,9 +33,13 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`Motion Mode: ${mode}, Speed: ${speed.toFixed(1)} km/h, Distance: ${(distance/1000).toFixed(2)} km`);
   });
 
-  // 7. Initialize Real-Time Voice Perception & Dynamic Scam Shield
+  // 7. Initialize Real-Time Voice Perception & First Aid 3D Teleport
   const voiceContainer = document.getElementById('voiceDiagnosticContainer');
-  const voiceDiagnostic = new VoiceDiagnostic(voiceContainer, () => carSelector.getSelectedVehicle());
+  const voiceDiagnostic = new VoiceDiagnostic(
+    voiceContainer, 
+    () => carSelector.getSelectedVehicle(),
+    () => scene3D
+  );
 
   // 7. 3D Camera Inspection Toolbar Controls
   const camButtons = document.querySelectorAll('.btn-cam-view');
