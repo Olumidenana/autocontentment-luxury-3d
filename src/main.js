@@ -3,6 +3,7 @@ import { Tachometer } from './components/tachometer.js';
 import { SoundSynth } from './components/soundSynth.js';
 import { ScrollController } from './components/scrollController.js';
 import { VoiceDiagnostic } from './components/voiceDiagnostic.js';
+import { CarSelector } from './components/carSelector.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize 3D WebGL Canvas
@@ -16,14 +17,46 @@ document.addEventListener('DOMContentLoaded', () => {
   const tachoContainer = document.getElementById('tachometerContainer');
   const tachometer = new Tachometer(tachoContainer, soundSynth);
 
-  // 4. Initialize Smooth Inertia Scroll & GSAP ScrollTrigger
+  // 4. Initialize Car Model Selector HUD
+  const selectorContainer = document.getElementById('vehicleSelectorContainer');
+  const carSelector = new CarSelector(selectorContainer, (selectedVehicle) => {
+    console.log("Selected vehicle changed:", selectedVehicle);
+    // Adapt tachometer to selected vehicle specs
+    if (tachometer) {
+      const redline = selectedVehicle.model.redline || 6500;
+      // You can update dial or max RPM dynamically
+    }
+  });
+
+  // 5. Initialize Smooth Inertia Scroll & GSAP ScrollTrigger
   const scrollController = new ScrollController(scene3D, tachometer);
 
-  // 5. Initialize Real-Time Voice Perception & Scam Shield
+  // 6. Initialize Real-Time Voice Perception & Dynamic Scam Shield
   const voiceContainer = document.getElementById('voiceDiagnosticContainer');
-  const voiceDiagnostic = new VoiceDiagnostic(voiceContainer);
+  const voiceDiagnostic = new VoiceDiagnostic(voiceContainer, () => carSelector.getSelectedVehicle());
 
-  // 6. Atelier Paint Swatches (Real-Time 3D Color Change)
+  // 7. 3D Camera Inspection Toolbar Controls
+  const camButtons = document.querySelectorAll('.btn-cam-view');
+  camButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.dataset.view;
+      if (view) {
+        camButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        scene3D.setCameraView(view);
+      }
+    });
+  });
+
+  const btnRotate = document.getElementById('btnToggleRotate');
+  if (btnRotate) {
+    btnRotate.addEventListener('click', () => {
+      const active = scene3D.toggleAutoRotate();
+      btnRotate.classList.toggle('active', active);
+    });
+  }
+
+  // 8. Atelier Paint Swatches (Real-Time 3D Color Change)
   const swatches = document.querySelectorAll('.paint-swatch');
   swatches.forEach(swatch => {
     swatch.addEventListener('click', () => {

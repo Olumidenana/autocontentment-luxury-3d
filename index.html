@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AutoContentment × Valmora | Coachbuilt 3D Automotive Experience</title>
   
-  <!-- Premium Editorial Fonts (Cinzel / Syne / Space Mono / Plus Jakarta Sans) -->
+  <!-- Premium Editorial Fonts (Cinzel / Plus Jakarta Sans / Space Mono / Syne) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
@@ -15,6 +15,16 @@
   <div id="app">
     <!-- Fixed 3D WebGL Background Canvas Layer -->
     <div id="canvas-container" class="webgl-canvas-container"></div>
+
+    <!-- Floating 3D Camera & Inspection Toolbar -->
+    <div class="camera-inspection-toolbar">
+      <div class="toolbar-label">3D CHASSIS CAMERA:</div>
+      <button class="btn-cam-view active" data-view="exterior">🏎️ Exterior Orbit</button>
+      <button class="btn-cam-view" data-view="engine">⚙️ Open Hood / Inspect Engine</button>
+      <button class="btn-cam-view" data-view="wheel">🛞 Brembo Brakes</button>
+      <button class="btn-cam-view" data-view="xray">🔬 X-Ray Chassis</button>
+      <button class="btn-cam-view" id="btnToggleRotate">🔄 360° Spin</button>
+    </div>
 
     <!-- Luxury Top Navigation Bar -->
     <header class="luxury-navbar">
@@ -30,7 +40,7 @@
         <a href="#hero">UNVEIL</a>
         <a href="#powertrain">POWERTRAIN</a>
         <a href="#chassis">CHASSIS</a>
-        <a href="#scam-shield">VOICE TRIAGE</a>
+        <a href="#voice-triage">NEURAL VOICE TRIAGE</a>
         <a href="#atelier">ATELIER</a>
       </nav>
 
@@ -42,6 +52,11 @@
         <a href="#private-viewing" class="btn-nav-action">INSPECT CHASSIS</a>
       </div>
     </header>
+
+    <!-- Vehicle Selector HUD Bar -->
+    <div class="vehicle-selector-wrapper" id="vehicleSelectorContainer">
+      <!-- Injected dynamically by carSelector.js -->
+    </div>
 
     <!-- Main Scrollable Storyboard Sections -->
     <main class="story-content">
@@ -60,7 +75,7 @@
           </p>
           <div class="hero-scroll-indicator">
             <span class="scroll-arrow">↓</span>
-            <span class="scroll-label">SCROLL TO PEEL DUST SHEET & UNVEIL POWERTRAIN</span>
+            <span class="scroll-label">SCROLL TO PEEL DUST SHEET & TOUR CHASSIS</span>
           </div>
         </div>
       </section>
@@ -94,15 +109,15 @@
       <section id="powertrain" class="section-powertrain">
         <div class="powertrain-card reveal-text">
           <div class="card-eyebrow">TWIN-TURBO V8 POWERTRAIN</div>
-          <h2 class="card-title">HOLOGRAPHIC DIAGNOSTICS</h2>
+          <h2 class="card-title">OPEN HOOD & ENGINE INSPECTION</h2>
           <p class="card-desc">
-            The hood panel becomes transparent on scroll, exposing the 4.0-liter hot-vee twin-turbo V8. Equipped with active telemetry nodes that monitor oil pressure, valve lifter harmonics, and transmission solenoid actuation in real time.
+            The hood panel swings open smoothly on its hinges to expose the cast aluminium engine block, high-flow intake plenum, red valve covers, and twin turbochargers. Click <strong>"Open Hood / Inspect Engine"</strong> on the top camera bar to zoom inside.
           </p>
           <div class="telemetry-tags">
-            <span class="telemetry-pill">4.0L HOT-VEE V8</span>
-            <span class="telemetry-pill">DRY SUMP LUBRICATION</span>
-            <span class="telemetry-pill">8-SPEED DUAL-CLUTCH</span>
-            <span class="telemetry-pill">7,800 RPM REDLINE</span>
+            <span class="telemetry-pill">CAST ALUMINIUM BLOCK</span>
+            <span class="telemetry-pill">TWIN TURBOCHARGERS</span>
+            <span class="telemetry-pill">VARIABLE VALVE TIMING</span>
+            <span class="telemetry-pill">ACTIVE OIL SOLENOIDS</span>
           </div>
         </div>
       </section>
@@ -137,7 +152,7 @@
       </section>
 
       <!-- 5. Real-Time Speech Perception & Scam Shield -->
-      <section id="scam-shield" class="section-scam-shield">
+      <section id="voice-triage" class="section-scam-shield">
         <div class="scam-shield-container" id="voiceDiagnosticContainer">
           <!-- Injected dynamically by voiceDiagnostic.js -->
         </div>
