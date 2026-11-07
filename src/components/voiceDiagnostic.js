@@ -30,15 +30,12 @@ export class VoiceDiagnostic {
             Narrate your emergency or symptom. Our responder listens to your actual words, provides immediate safety precautions, tells you if it is roadside DIY feasible, and <strong>teleports the 3D camera to show you exactly where the part is located inside your car</strong>.
           </p>
 
-          <!-- Language Selector -->
+          <!-- Dynamic Language & Code-Switching Detection Badge -->
           <div class="lang-selector-row">
-            <span class="lang-lbl">RESPONDER LANGUAGE:</span>
-            <div class="lang-pills">
-              <button class="lang-pill active" data-lang="en">🇬🇧 English</button>
-              <button class="lang-pill" data-lang="pidgin">🇳🇬 Nigerian Pidgin</button>
-              <button class="lang-pill" data-lang="yoruba">Yorùbá</button>
-              <button class="lang-pill" data-lang="hausa">Hausa</button>
-              <button class="lang-pill" data-lang="igbo">Asụsụ Igbo</button>
+            <span class="lang-lbl">LANGUAGE ADAPTATION:</span>
+            <div class="detected-lang-pill" id="detectedLangBadge">
+              <span class="lang-auto-dot"></span>
+              <span id="detectedLangText">Auto-Detecting Dialect (English / Pidgin / Yorùbá / Hausa / Igbo)</span>
             </div>
           </div>
         </div>
@@ -105,8 +102,35 @@ export class VoiceDiagnostic {
     this.btnStopAnalyze = this.container.querySelector('#btnStopAndAnalyze');
     this.reasoningBox = this.container.querySelector('#reasoningSteps');
     this.firstAidCard = this.container.querySelector('#firstAidCard');
+    this.detectedLangText = this.container.querySelector('#detectedLangText');
 
     this.bindEvents();
+  }
+
+  detectLanguageAndDialect(text) {
+    const lower = text.toLowerCase();
+    const yorubaWords = ['bawo', 'o dabi', 'wipe', 'kosi', 'epo', 'ina', 'aago', 'kiakia', 'patapata', 'jona', 'duro', 'pelu', 'lori', 'lara', 'ti o ba', 'se o'];
+    const pidginWords = ['wetin', 'dey', 'fit', 'commot', 'chop', 'well-well', 'wahala', 'abeg', 'motor', 'don', 'sef', 'sha', 'oya', 'na so', 'kuku'];
+    const hausaWords = ['ina kwana', 'yaya', 'motar', 'zafi', 'ruwa', 'tsaya', 'gyara', 'sannu', 'yauwa'];
+    const igboWords = ['kedu', 'gini', 'moto', 'ọkụ', 'mmiri', 'nwayọ', 'mezie', 'biko', 'otu'];
+
+    const hasYoruba = yorubaWords.some(w => lower.includes(w));
+    const hasPidgin = pidginWords.some(w => lower.includes(w));
+    const hasHausa = hausaWords.some(w => lower.includes(w));
+    const hasIgbo = igboWords.some(w => lower.includes(w));
+
+    if (hasYoruba && hasPidgin) {
+      return { code: 'mixed_yoruba_pidgin', label: '🇳🇬 Mixed Code-Switch (English + Pidgin + Yorùbá)' };
+    } else if (hasYoruba) {
+      return { code: 'yoruba', label: '🇳🇬 Yorùbá Automotive Dialect' };
+    } else if (hasPidgin) {
+      return { code: 'pidgin', label: '🇳🇬 Nigerian Pidgin English' };
+    } else if (hasHausa) {
+      return { code: 'hausa', label: '🇳🇬 Hausa Automotive Dialect' };
+    } else if (hasIgbo) {
+      return { code: 'igbo', label: '🇳🇬 Asụsụ Igbo Automotive Dialect' };
+    }
+    return { code: 'en', label: '🇬🇧 Global Automotive English' };
   }
 
   bindEvents() {
@@ -209,6 +233,13 @@ export class VoiceDiagnostic {
         <span class="transcript-words">${fullSpokenText}</span>
         <span class="typewriter-cursor">|</span>
       `;
+
+      // Live Dialect & Mixed Language Auto-Detection
+      const detected = this.detectLanguageAndDialect(fullSpokenText);
+      this.selectedLanguage = detected.code;
+      if (this.detectedLangText) {
+        this.detectedLangText.textContent = detected.label;
+      }
 
       clearTimeout(this.silenceTimer);
       this.silenceTimer = setTimeout(() => {
@@ -511,8 +542,8 @@ export class VoiceDiagnostic {
   renderFirstAidResponse(userSpeech, vehicle, diagnosis) {
     this.firstAidCard.style.display = 'block';
     const lang = this.selectedLanguage;
-    const precText = diagnosis.precautions[lang] || diagnosis.precautions.en;
-    const stepsList = diagnosis.steps[lang] || diagnosis.steps.en;
+    const precText = diagnosis.precautions[lang] || (lang.includes('yoruba') ? diagnosis.precautions.yoruba : diagnosis.precautions.pidgin) || diagnosis.precautions.en;
+    const stepsList = diagnosis.steps[lang] || (lang.includes('yoruba') ? diagnosis.steps.yoruba : diagnosis.steps.pidgin) || diagnosis.steps.en;
     const carHeader = `${vehicle.year} ${vehicle.model.name}`;
 
     // Automatically trigger the 3D Scene camera to teleport and highlight the component!

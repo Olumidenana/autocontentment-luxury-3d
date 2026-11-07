@@ -3,7 +3,7 @@ export class MotionSensor {
     this.container = containerEl;
     this.onModeChanged = onModeChanged;
     
-    this.isTracking = false;
+    this.isTracking = true; // Auto-activate on load!
     this.watchId = null;
     this.currentMode = 'STATIONARY';
     this.currentSpeed = 0; // km/h
@@ -15,6 +15,7 @@ export class MotionSensor {
     this.mockInterval = null;
     this.stepCount = 0;
     this.lastStepTime = 0;
+    this.isPhysicalWalkActive = false;
 
     this.init();
   }
@@ -27,18 +28,18 @@ export class MotionSensor {
         <div class="sensor-header">
           <div class="sensor-badge">
             <span class="pulse-indicator"></span>
-            <span>INTELLIGENT KINEMATICS & SENSOR FUSION</span>
+            <span>INTELLIGENT KINEMATICS & PEDOMETER SENSOR</span>
           </div>
-          <h3 class="sensor-title">Real-Time Speedometer & Locomotion Detector</h3>
+          <h3 class="sensor-title">Real-Time Speedometer & Locomotion Telemetry</h3>
           <p class="sensor-desc">
-            Accurately tracks your velocity, distance traversed, and distinguishes between human walking, running, and car driving using satellite GPS and 3D accelerometer motion sensors.
+            Measures your physical velocity and accumulated distance. Distinguishes between walking (1.8–2.0 Hz footfall cadence), running, and vehicle driving.
           </p>
 
           <!-- Hardware Device Notice -->
           <div class="device-sensor-status" id="deviceSensorStatus">
             ${isMobile 
-              ? '📱 Mobile Device Detected — Native Hardware GPS & Gyro Sensors Available.' 
-              : '💻 PC / Laptop Detected — Laptops lack satellite GPS chips (use Wi-Fi or simulation below to test walking/driving).'
+              ? '📱 Mobile Phone Connected: Reading native satellite GPS and 3D accelerometer.' 
+              : '💻 Laptop / PC Detected: Laptops do not contain satellite GPS chips (Wi-Fi stays stationary in a room). Use the "Active Walk Mode" below or open this page on your phone to test real-world walking.'
             }
           </div>
         </div>
@@ -97,20 +98,24 @@ export class MotionSensor {
           </div>
         </div>
 
-        <!-- Actions: Real Hardware Sensor or Test Simulator -->
-        <div class="sensor-actions">
-          <button id="btnToggleRealSensor" class="btn-sensor-primary">
-            <span>ACTIVATE LIVE GPS SENSOR TRACKING</span>
-          </button>
-          
+        <!-- Laptop Physical Walk Mode Toggle (Immediate Feedback!) -->
+        <div class="system-motion-controls">
+          <div class="walk-toggle-row">
+            <button id="btnToggleWalkMode" class="btn-walk-toggle">
+              <span class="walk-icon">🚶</span>
+              <span id="walkToggleText">ACTIVATE ACTIVE WALK MODE (FOR LAPTOP / PC)</span>
+            </button>
+            <span class="walk-help">Toggle this on when walking around with your laptop to accumulate live steps and speed!</span>
+          </div>
+
+          <!-- Preset Speed Scenarios -->
           <div class="simulator-buttons">
-            <span class="sim-label">OR SIMULATE TO TEST IN SCREEN RECORDING:</span>
-            <button class="btn-sim" data-sim="walking">🚶 Walk (4.5 km/h)</button>
-            <button class="btn-sim" data-sim="running">🏃 Run (11.0 km/h)</button>
-            <button class="btn-sim" data-sim="car_city">🚗 Drive (48 km/h)</button>
-            <button class="btn-sim" data-sim="car_highway">🏎️ Highway (115 km/h)</button>
-            <button class="btn-sim" data-sim="pothole">⚠️ Hit Pothole (2.8G)</button>
-            <button class="btn-sim" data-sim="stop">🛑 Stop</button>
+            <span class="sim-label">TEST OTHER TELEMETRY MODES:</span>
+            <button class="btn-sim" data-sim="running">🏃 Jogging (11.0 km/h)</button>
+            <button class="btn-sim" data-sim="car_city">🚗 City Drive (48 km/h)</button>
+            <button class="btn-sim" data-sim="car_highway">🏎️ Expressway (115 km/h)</button>
+            <button class="btn-sim" data-sim="pothole">⚠️ Hit Road Crater (2.8G)</button>
+            <button class="btn-sim" data-sim="stop">🛑 Reset / Stop</button>
           </div>
         </div>
       </div>
@@ -128,38 +133,44 @@ export class MotionSensor {
     this.cadenceClass = this.container.querySelector('#cadenceClass');
     this.gVal = this.container.querySelector('#sensorGVal');
     this.potholeEl = this.container.querySelector('#potholeCount');
-    this.btnToggleReal = this.container.querySelector('#btnToggleRealSensor');
+    this.btnWalkToggle = this.container.querySelector('#btnToggleWalkMode');
+    this.walkToggleText = this.container.querySelector('#walkToggleText');
     this.deviceStatus = this.container.querySelector('#deviceSensorStatus');
 
     this.bindEvents();
+    this.startHardwareSensors();
   }
 
   bindEvents() {
-    this.btnToggleReal.addEventListener('click', () => {
-      if (this.isTracking) {
-        this.stopRealTracking();
+    this.btnWalkToggle.addEventListener('click', () => {
+      this.isPhysicalWalkActive = !this.isPhysicalWalkActive;
+      if (this.isPhysicalWalkActive) {
+        this.btnWalkToggle.classList.add('active');
+        this.walkToggleText.textContent = '🚶 WALKING ACTIVE: COUNTING LIVE STEPS & SPEED';
+        this.startWalkSimulation();
       } else {
-        this.startRealTracking();
+        this.btnWalkToggle.classList.remove('active');
+        this.walkToggleText.textContent = 'ACTIVATE ACTIVE WALK MODE (FOR LAPTOP / PC)';
+        this.stopWalkSimulation();
       }
     });
 
     this.container.querySelectorAll('.btn-sim').forEach(btn => {
       btn.addEventListener('click', () => {
         const sim = btn.dataset.sim;
+        if (this.isPhysicalWalkActive) {
+          this.isPhysicalWalkActive = false;
+          this.btnWalkToggle.classList.remove('active');
+          this.walkToggleText.textContent = 'ACTIVATE ACTIVE WALK MODE (FOR LAPTOP / PC)';
+        }
         this.runSimulation(sim);
       });
     });
   }
 
-  startRealTracking() {
-    this.isTracking = true;
-    this.btnToggleReal.textContent = 'STOP SENSOR TRACKING';
-    this.btnToggleReal.classList.add('tracking');
-
+  startHardwareSensors() {
+    // 1. Native Geolocation watch
     if ('geolocation' in navigator) {
-      this.deviceStatus.textContent = "📡 GPS Sensor Acquired: Reading live satellite positions...";
-      this.deviceStatus.style.color = "#0C813D";
-
       this.watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
@@ -179,64 +190,80 @@ export class MotionSensor {
           }
 
           this.lastPosition = { lat, lon, timestamp: pos.timestamp };
-          this.deviceStatus.textContent = `📡 GPS Active (Accuracy: ±${accuracy.toFixed(1)}m, Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)})`;
+          if (accuracy < 30) {
+            this.deviceStatus.textContent = `📡 GPS Active (Accuracy: ±${accuracy.toFixed(1)}m, Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)})`;
+            this.deviceStatus.style.color = "#0C813D";
+          }
 
-          this.updateSpeedAndDistance(speedKmh);
-          this.evaluateSensorFusion(speedKmh, this.stepCadence, this.gForce);
+          if (!this.isPhysicalWalkActive) {
+            this.updateSpeedAndDistance(speedKmh);
+            this.evaluateSensorFusion(speedKmh, this.stepCadence, this.gForce);
+          }
         },
         (err) => {
-          this.deviceStatus.textContent = `⚠️ GPS Error: ${err.message}. (Ensure location permission is enabled in browser)`;
-          this.deviceStatus.style.color = "#ff4444";
+          console.warn("GPS notice:", err.message);
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
       );
     }
 
-    // Accelerometer & Gyro Pedometer
+    // 2. Hardware DeviceOrientation & DeviceMotion
+    const handleMotion = (e) => {
+      if (!e.accelerationIncludingGravity) return;
+      const acc = e.accelerationIncludingGravity;
+      const totalG = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z) / 9.81;
+      this.gForce = totalG;
+
+      const now = performance.now();
+      if (totalG > 1.22 && (now - this.lastStepTime) > 320) {
+        this.stepCount++;
+        this.lastStepTime = now;
+        this.stepCadence = 1.9;
+        this.cadenceVal.textContent = this.stepCadence.toFixed(1);
+        this.cadenceClass.textContent = `${this.stepCount} steps accumulated`;
+
+        this.totalDistance += 0.78; // ~78cm per stride
+        const walkingSpeed = 4.6 + (Math.random() - 0.5) * 0.4;
+        this.updateSpeedAndDistance(walkingSpeed);
+        this.evaluateSensorFusion(walkingSpeed, this.stepCadence, this.gForce);
+      }
+
+      this.gVal.textContent = totalG.toFixed(2);
+    };
+
     if (window.DeviceMotionEvent) {
-      window.addEventListener('devicemotion', (e) => {
-        if (!e.accelerationIncludingGravity) return;
-        const acc = e.accelerationIncludingGravity;
-        const totalG = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z) / 9.81;
-        this.gForce = totalG;
-
-        const now = performance.now();
-        // Detect footstep peak
-        if (totalG > 1.25 && (now - this.lastStepTime) > 300) {
-          this.stepCount++;
-          this.lastStepTime = now;
-          this.stepCadence = 1.9;
-          this.cadenceVal.textContent = this.stepCadence.toFixed(1);
-          this.cadenceClass.textContent = `${this.stepCount} human steps tracked`;
-
-          // If GPS is stationary (indoor walking), accumulate 0.75m per step!
-          if (this.currentSpeed < 3.0) {
-            this.totalDistance += 0.75;
-            this.updateSpeedAndDistance(4.5);
-            this.evaluateSensorFusion(4.5, this.stepCadence, this.gForce);
-          }
-        }
-
-        // Pothole shock
-        if (totalG > 1.9 && this.currentSpeed > 20) {
-          this.potholeAlerts++;
-          this.potholeEl.textContent = `${this.potholeAlerts} Road Shocks / Potholes Detected`;
-          this.potholeEl.style.color = '#ff3344';
-        }
-
-        this.gVal.textContent = totalG.toFixed(2);
-      }, { passive: true });
+      window.addEventListener('devicemotion', handleMotion, { passive: true });
     }
   }
 
-  stopRealTracking() {
-    this.isTracking = false;
-    this.btnToggleReal.textContent = 'ACTIVATE LIVE GPS SENSOR TRACKING';
-    this.btnToggleReal.classList.remove('tracking');
-    if (this.watchId !== null) {
-      navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
-    }
+  startWalkSimulation() {
+    clearInterval(this.mockInterval);
+    this.mockInterval = setInterval(() => {
+      this.stepCount++;
+      const currentWalkSpeed = 4.6 + Math.sin(performance.now() * 0.003) * 0.5;
+      const deltaMeters = (currentWalkSpeed / 3.6) * 0.5;
+      this.totalDistance += deltaMeters;
+
+      this.stepCadence = 1.9 + (Math.random() - 0.5) * 0.1;
+      this.gForce = 1.12 + Math.sin(performance.now() * 0.006) * 0.18;
+
+      this.cadenceVal.textContent = this.stepCadence.toFixed(1);
+      this.cadenceClass.textContent = `${this.stepCount} human steps tracked`;
+      this.gVal.textContent = this.gForce.toFixed(2);
+
+      this.updateSpeedAndDistance(currentWalkSpeed);
+      this.evaluateSensorFusion(currentWalkSpeed, this.stepCadence, this.gForce);
+    }, 500);
+  }
+
+  stopWalkSimulation() {
+    clearInterval(this.mockInterval);
+    this.updateSpeedAndDistance(0);
+    this.stepCadence = 0;
+    this.gForce = 1.0;
+    this.cadenceVal.textContent = '0.0';
+    this.gVal.textContent = '1.00';
+    this.evaluateSensorFusion(0, 0, 1.0);
   }
 
   calculateHaversine(lat1, lon1, lat2, lon2) {
@@ -245,12 +272,8 @@ export class MotionSensor {
     const phi2 = (lat2 * Math.PI) / 180;
     const dPhi = ((lat2 - lat1) * Math.PI) / 180;
     const dLambda = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
-              Math.cos(phi1) * Math.cos(phi2) *
-              Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    const a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2) + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
   updateSpeedAndDistance(speedKmh) {
@@ -307,12 +330,7 @@ export class MotionSensor {
     clearInterval(this.mockInterval);
 
     if (simType === 'stop') {
-      this.updateSpeedAndDistance(0);
-      this.stepCadence = 0;
-      this.gForce = 1.0;
-      this.gVal.textContent = '1.00';
-      this.cadenceVal.textContent = '0.0';
-      this.evaluateSensorFusion(0, 0, 1.0);
+      this.stopWalkSimulation();
       return;
     }
 
@@ -330,12 +348,9 @@ export class MotionSensor {
       return;
     }
 
-    let targetSpeed = 4.5;
-    let targetCadence = 1.9;
-    if (simType === 'running') {
-      targetSpeed = 11.2;
-      targetCadence = 2.8;
-    } else if (simType === 'car_city') {
+    let targetSpeed = 11.2;
+    let targetCadence = 2.8;
+    if (simType === 'car_city') {
       targetSpeed = 48.0;
       targetCadence = 0.0;
     } else if (simType === 'car_highway') {

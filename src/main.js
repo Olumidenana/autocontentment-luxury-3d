@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectorContainer = document.getElementById('vehicleSelectorContainer');
   const carSelector = new CarSelector(selectorContainer, (selectedVehicle) => {
     console.log("Selected vehicle changed:", selectedVehicle);
+    if (scene3D && selectedVehicle.model) {
+      scene3D.setVehicleModel(selectedVehicle.brand, selectedVehicle.model.id);
+    }
   });
 
   // 5. Initialize Smooth Inertia Scroll & GSAP ScrollTrigger

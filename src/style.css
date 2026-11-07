@@ -1809,3 +1809,86 @@ html, body {
   border-radius: 6px;
   margin-top: 10px;
 }
+
+
+/* Detected Language Pill */
+.detected-lang-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(12, 129, 61, 0.15);
+  border: 1px solid var(--color-primary);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #bbf7d0;
+}
+
+.lang-auto-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
+  animation: pulse 1.4s infinite;
+}
+
+/* Laptop Active Walk Mode Toggle */
+.system-motion-controls {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.walk-toggle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-walk-toggle {
+  background: linear-gradient(135deg, rgba(12, 129, 61, 0.25), rgba(14, 165, 233, 0.2));
+  border: 1px solid var(--color-primary);
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 20px var(--color-primary-glow);
+}
+
+.btn-walk-toggle:hover {
+  transform: translateY(-2px);
+}
+
+.btn-walk-toggle.active {
+  background: #0C813D;
+  box-shadow: 0 0 32px var(--color-primary-glow);
+  animation: pulseWalk 1.4s infinite;
+}
+
+@keyframes pulseWalk {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.walk-icon {
+  font-size: 18px;
+}
+
+.walk-help {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  text-align: center;
+}
