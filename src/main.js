@@ -11,33 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize 3D WebGL Canvas
   const canvasContainer = document.getElementById('canvas-container');
   const scene3D = new Scene3D(canvasContainer);
+  if (canvasContainer) {
+    canvasContainer.style.pointerEvents = 'auto';
+  }
 
-  // 2. Initialize Photorealistic Real-Life Studio & Engine Inspector Overlay
+  // 2. Initialize Floating Real-Life Studio HUD (Specs & Anti-Scam Shield)
   const studioContainer = document.getElementById('realStudioContainer');
-  const webglOnlyTools = document.getElementById('webglOnlyTools');
-
-  const realStudioViewer = new RealStudioViewer(studioContainer, (mode) => {
-    console.log("Viewport mode changed to:", mode);
-    // Sync all tab buttons across the UI
-    document.querySelectorAll('.btn-studio-tab').forEach(b => {
-      b.classList.toggle('active', b.dataset.mode === mode);
-    });
-
-    if (mode === 'webgl') {
-      if (webglOnlyTools) webglOnlyTools.style.display = 'flex';
-      canvasContainer.style.pointerEvents = 'auto';
-    } else {
-      if (webglOnlyTools) webglOnlyTools.style.display = 'none';
-      canvasContainer.style.pointerEvents = 'none';
-    }
-  });
-
-  // Sync toolbar buttons on bottom floating bar
-  document.querySelectorAll('.camera-inspection-toolbar .btn-studio-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const mode = btn.dataset.mode;
-      realStudioViewer.setMode(mode);
-    });
+  const realStudioViewer = new RealStudioViewer(studioContainer, () => {
+    scene3D.toggleBonnet();
   });
 
   // 3. Initialize V8 Exhaust Note Synthesizer
@@ -55,17 +36,27 @@ document.addEventListener('DOMContentLoaded', () => {
       realStudioViewer.setVehicle(selectedVehicle);
     }
     if (scene3D && selectedVehicle.model) {
-      scene3D.setVehicleModel(selectedVehicle.brand, selectedVehicle.model.id, selectedVehicle.model.oemHex);
+      scene3D.setVehicleModel(
+        selectedVehicle.brand, 
+        selectedVehicle.model.id, 
+        selectedVehicle.model.oemHex, 
+        selectedVehicle.model
+      );
     }
   });
 
-  // Initial vehicle setup
+  // Initial vehicle setup (Mercedes-Benz E350 W212 default)
   const initialVehicle = carSelector.getSelectedVehicle();
   if (realStudioViewer) {
     realStudioViewer.setVehicle(initialVehicle);
   }
   if (scene3D && initialVehicle.model) {
-    scene3D.setVehicleModel(initialVehicle.brand, initialVehicle.model.id, initialVehicle.model.oemHex);
+    scene3D.setVehicleModel(
+      initialVehicle.brand, 
+      initialVehicle.model.id, 
+      initialVehicle.model.oemHex, 
+      initialVehicle.model
+    );
   }
 
   // 6. Initialize Smooth Inertia Scroll & GSAP ScrollTrigger
@@ -86,15 +77,39 @@ document.addEventListener('DOMContentLoaded', () => {
     () => realStudioViewer
   );
 
-  // 9. 3D Camera Inspection Toolbar Controls
-  const camButtons = document.querySelectorAll('.btn-cam-view');
+  // 9. Interactive 3D Bonnet & Camera Toolbar
+  const btnBonnet = document.getElementById('btnToggleBonnet');
+  const bonnetText = document.getElementById('bonnetBtnText');
+  if (btnBonnet) {
+    btnBonnet.addEventListener('click', () => {
+      const isOpen = scene3D.toggleBonnet();
+      btnBonnet.classList.toggle('active', isOpen);
+      if (bonnetText) {
+        bonnetText.textContent = isOpen ? 'CLOSE BONNET' : 'OPEN BONNET (HOOD)';
+      }
+    });
+  }
+
+  const camButtons = document.querySelectorAll('.btn-cam-view:not(.btn-bonnet-action)');
   camButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const view = btn.dataset.view;
       if (view) {
         camButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        scene3D.setCameraView(view);
+
+        if (view === 'engine') {
+          scene3D.openBonnet(true);
+          if (btnBonnet) btnBonnet.classList.add('active');
+          if (bonnetText) bonnetText.textContent = 'CLOSE BONNET';
+          scene3D.setCameraView('engine');
+        } else {
+          scene3D.setCameraView(view);
+          if (btnBonnet && !scene3D.isBonnetOpen) {
+            btnBonnet.classList.remove('active');
+            if (bonnetText) bonnetText.textContent = 'OPEN BONNET (HOOD)';
+          }
+        }
       }
     });
   });
@@ -118,5 +133,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  console.log("AutoContentment × Valmora Real-Life Studio & 3D Experience Initialized.");
+  console.log("AutoContentment 3D Real-Life Engine & Chassis Experience Ready.");
 });

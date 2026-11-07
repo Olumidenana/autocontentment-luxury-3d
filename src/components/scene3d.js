@@ -22,9 +22,15 @@ export class Scene3D {
     this.autoRotate = false;
     this.activePin = null;
 
+    this.textureLoader = new THREE.TextureLoader();
+    this.currentEngineImageUrl = '/images/engines/engine_mercedes_v6.jpg';
+    this.currentCarImageUrl = '/images/cars/mercedes_e350.jpg';
+    this.engineDeckMesh = null;
+    this.carBillboardMesh = null;
+
     this.cameraTargets = {
       exterior:    { pos: new THREE.Vector3(5.2, 1.8, 5.2), lookAt: new THREE.Vector3(0, 0.35, 0) },
-      bonnet_open: { pos: new THREE.Vector3(2.2, 2.0, 1.0), lookAt: new THREE.Vector3(1.1, 0.45, 0) },
+      bonnet_open: { pos: new THREE.Vector3(2.3, 1.8, 1.1), lookAt: new THREE.Vector3(1.15, 0.42, 0) },
       battery:     { pos: new THREE.Vector3(1.5, 1.6, 0.8), lookAt: new THREE.Vector3(1.05, 0.52, 0.45) },
       coolant:     { pos: new THREE.Vector3(2.0, 1.4, 0.5), lookAt: new THREE.Vector3(1.55, 0.48, 0.35) },
       oil_dipstick:{ pos: new THREE.Vector3(1.6, 1.6, 0.15), lookAt: new THREE.Vector3(1.15, 0.52, 0.0) },
@@ -112,12 +118,61 @@ export class Scene3D {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(0, -0.505, 0);
     this.scene.add(shadow);
+
+    // 3D Realistic Vehicle Studio Backdrop Billboard
+    const billboardTex = this.textureLoader.load(this.currentCarImageUrl);
+    billboardTex.colorSpace = THREE.SRGBColorSpace;
+    const billboardGeo = new THREE.PlaneGeometry(6.6, 3.8);
+    const billboardMat = new THREE.MeshBasicMaterial({
+      map: billboardTex,
+      transparent: true,
+      opacity: 0.92,
+      side: THREE.DoubleSide
+    });
+    this.carBillboardMesh = new THREE.Mesh(billboardGeo, billboardMat);
+    this.carBillboardMesh.position.set(0, 1.85, -4.2);
+    this.scene.add(this.carBillboardMesh);
+  }
+
+  updateEngineTexture(url) {
+    if (!url) return;
+    this.currentEngineImageUrl = url;
+    if (!this.textureLoader) this.textureLoader = new THREE.TextureLoader();
+    this.textureLoader.load(url, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      if (this.engineDeckMesh) {
+        this.engineDeckMesh.material.map = tex;
+        this.engineDeckMesh.material.needsUpdate = true;
+      }
+    });
+  }
+
+  updateCarBillboardTexture(url) {
+    if (!url) return;
+    this.currentCarImageUrl = url;
+    if (!this.textureLoader) this.textureLoader = new THREE.TextureLoader();
+    this.textureLoader.load(url, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      if (this.carBillboardMesh) {
+        this.carBillboardMesh.material.map = tex;
+        this.carBillboardMesh.material.needsUpdate = true;
+      }
+    });
   }
 
   // Switches 3D Car Architecture dynamically based on selected vehicle
-  setVehicleModel(brand, modelId, oemHex) {
+  setVehicleModel(brand, modelId, oemHex, vehicleData) {
     if (oemHex !== undefined) {
       this.currentPaintColor = oemHex;
+    }
+
+    if (vehicleData) {
+      if (vehicleData.engineImage) {
+        this.updateEngineTexture(vehicleData.engineImage);
+      }
+      if (vehicleData.image) {
+        this.updateCarBillboardTexture(vehicleData.image);
+      }
     }
 
     let bodyType = 'sedan';
@@ -387,6 +442,23 @@ export class Scene3D {
     tub.position.set(0, 0.1, 0);
     this.engineBayGroup.add(tub);
 
+    // 3D Realistic Photographed Engine Bay Deck (maps the exact engine photo of the selected vehicle in 3D)
+    if (!this.textureLoader) this.textureLoader = new THREE.TextureLoader();
+    const engineTex = this.textureLoader.load(this.currentEngineImageUrl || '/images/engines/engine_mercedes_v6.jpg');
+    engineTex.colorSpace = THREE.SRGBColorSpace;
+
+    const engineDeckGeo = new THREE.PlaneGeometry(1.62, 1.45, 16, 16);
+    engineDeckGeo.rotateX(-Math.PI / 2);
+    const engineDeckMat = new THREE.MeshStandardMaterial({
+      map: engineTex,
+      roughness: 0.38,
+      metalness: 0.45,
+      bumpScale: 0.05
+    });
+    this.engineDeckMesh = new THREE.Mesh(engineDeckGeo, engineDeckMat);
+    this.engineDeckMesh.position.set(0.04, 0.36, 0);
+    this.engineBayGroup.add(this.engineDeckMesh);
+
     // 2. Realistic Engine Block (Transverse V6 for Sedan, Longitudinal for SUV/GT)
     const block = new THREE.Mesh(
       new THREE.BoxGeometry(1.0, 0.5, 0.74),
@@ -553,6 +625,18 @@ export class Scene3D {
     this.isBonnetOpen = open;
   }
 
+  toggleBonnet() {
+    this.isBonnetOpen = !this.isBonnetOpen;
+    if (this.isBonnetOpen) {
+      this.currentCameraTarget = this.cameraTargets.bonnet_open;
+      if (this.engineSpotlight) this.engineSpotlight.intensity = 5.0;
+    } else {
+      this.currentCameraTarget = this.cameraTargets.exterior;
+      if (this.engineSpotlight) this.engineSpotlight.intensity = 0;
+    }
+    return this.isBonnetOpen;
+  }
+
   setCameraView(viewName) {
     this.activePin = null;
     if (viewName === 'engine') {
@@ -672,8 +756,8 @@ export class Scene3D {
       this.camera.lookAt(this.currentLookAt);
     }
 
-    // Bonnet Opening Animation (Upward swing ~50 degrees)
-    const targetBonnetAngle = this.isBonnetOpen ? -Math.PI / 3.6 : 0;
+    // Bonnet Opening Animation (Upward swing ~60 degrees for complete engine visibility)
+    const targetBonnetAngle = this.isBonnetOpen ? -Math.PI / 3.0 : 0;
     this.bonnetGroup.rotation.z += (targetBonnetAngle - this.bonnetGroup.rotation.z) * 0.08;
 
     if (this.autoRotate) {
