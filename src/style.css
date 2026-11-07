@@ -110,6 +110,84 @@ select, input, textarea, button, option {
   box-shadow: 0 0 24px rgba(12, 129, 61, 0.7) !important;
 }
 
+/* CAD Exploded View Button & Real-Time Disassembly Slider */
+.btn-explode-action {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(12, 129, 61, 0.24)) !important;
+  border: 1px solid #38bdf8 !important;
+  color: #38bdf8 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.3) !important;
+}
+
+.btn-explode-action:hover,
+.btn-explode-action.active {
+  background: linear-gradient(135deg, #0284c7, #0C813D) !important;
+  color: #ffffff !important;
+  border-color: #7dd3fc !important;
+  box-shadow: 0 0 26px rgba(56, 189, 248, 0.75) !important;
+}
+
+.disassembly-slider-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
+.slider-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #38bdf8;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hud-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 5px;
+  background: #1e293b;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hud-slider:hover {
+  background: #334155;
+}
+
+.hud-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8, 0 0 4px #ffffff;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  transition: transform 0.15s ease;
+}
+
+.hud-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  background: #7dd3fc;
+}
+
+.slider-percentage {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #ffffff;
+  font-weight: 700;
+  min-width: 32px;
+}
+
 /* Photorealistic Real-Life Vehicle & Engine Showroom Overlay */
 .real-studio-container {
   position: fixed;
