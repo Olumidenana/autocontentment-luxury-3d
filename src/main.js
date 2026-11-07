@@ -77,47 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     () => realStudioViewer
   );
 
-  // 9. Interactive CAD Exploded View & Disassembly Slider
-  const btnExplode = document.getElementById('btnToggleExplode');
-  const explodeText = document.getElementById('explodeBtnText');
-  const disassemblySlider = document.getElementById('disassemblySlider');
-  const disassemblyPercentage = document.getElementById('disassemblyPercentage');
-
-  if (btnExplode) {
-    btnExplode.addEventListener('click', () => {
-      const isExploded = scene3D.toggleExplodedCAD();
-      btnExplode.classList.toggle('active', isExploded);
-      if (explodeText) {
-        explodeText.textContent = isExploded ? 'COLLAPSE CAD ASSEMBLY' : 'CAD EXPLODED VIEW';
-      }
-      if (disassemblySlider) {
-        disassemblySlider.value = isExploded ? 100 : 0;
-      }
-      if (disassemblyPercentage) {
-        disassemblyPercentage.textContent = isExploded ? '100%' : '0%';
-      }
-    });
-  }
-
-  if (disassemblySlider) {
-    disassemblySlider.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      const ratio = val / 100;
-      scene3D.setDisassemblyProgress(ratio);
-      if (disassemblyPercentage) {
-        disassemblyPercentage.textContent = `${Math.round(val)}%`;
-      }
-      if (btnExplode) {
-        const isExp = val > 5;
-        btnExplode.classList.toggle('active', isExp);
-        if (explodeText) {
-          explodeText.textContent = isExp ? 'COLLAPSE CAD ASSEMBLY' : 'CAD EXPLODED VIEW';
-        }
-      }
-    });
-  }
-
-  // 10. Interactive 3D Bonnet & Camera Toolbar
+  // 9. Interactive 3D Bonnet & Camera Toolbar
   const btnBonnet = document.getElementById('btnToggleBonnet');
   const bonnetText = document.getElementById('bonnetBtnText');
   if (btnBonnet) {
@@ -130,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const camButtons = document.querySelectorAll('.btn-cam-view:not(.btn-bonnet-action):not(.btn-explode-action)');
+  const camButtons = document.querySelectorAll('.btn-cam-view:not(.btn-bonnet-action)');
   camButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const view = btn.dataset.view;
