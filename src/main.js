@@ -4,6 +4,7 @@ import { SoundSynth } from './components/soundSynth.js';
 import { ScrollController } from './components/scrollController.js';
 import { VoiceDiagnostic } from './components/voiceDiagnostic.js';
 import { CarSelector } from './components/carSelector.js';
+import { MotionSensor } from './components/motionSensor.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize 3D WebGL Canvas
@@ -21,17 +22,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectorContainer = document.getElementById('vehicleSelectorContainer');
   const carSelector = new CarSelector(selectorContainer, (selectedVehicle) => {
     console.log("Selected vehicle changed:", selectedVehicle);
-    // Adapt tachometer to selected vehicle specs
-    if (tachometer) {
-      const redline = selectedVehicle.model.redline || 6500;
-      // You can update dial or max RPM dynamically
-    }
   });
 
   // 5. Initialize Smooth Inertia Scroll & GSAP ScrollTrigger
   const scrollController = new ScrollController(scene3D, tachometer);
 
-  // 6. Initialize Real-Time Voice Perception & Dynamic Scam Shield
+  // 6. Initialize Motion Sensor (Human Walk/Run vs. Car In-Motion)
+  const motionContainer = document.getElementById('motionSensorContainer');
+  const motionSensor = new MotionSensor(motionContainer, (mode, speed, distance) => {
+    console.log(`Motion Mode: ${mode}, Speed: ${speed.toFixed(1)} km/h, Distance: ${(distance/1000).toFixed(2)} km`);
+  });
+
+  // 7. Initialize Real-Time Voice Perception & Dynamic Scam Shield
   const voiceContainer = document.getElementById('voiceDiagnosticContainer');
   const voiceDiagnostic = new VoiceDiagnostic(voiceContainer, () => carSelector.getSelectedVehicle());
 
