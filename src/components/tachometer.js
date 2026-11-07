@@ -145,9 +145,7 @@ export class Tachometer {
   }
 
   updateFromScroll(scrollProgress) {
-    // Dynamically increase RPM as user scrolls down the chassis stages
-    const baseRpm = 950 + Math.sin(scrollProgress * Math.PI) * 5200;
-    this.targetRpm = Math.max(950, baseRpm);
+    // Tachometer stays at steady idle RPM and is NOT distorted by scroll or mouse
   }
 
   animateLoop() {
