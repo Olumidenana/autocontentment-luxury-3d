@@ -347,11 +347,15 @@ export class Scene3D {
       model.position.set(0, posY, 0);
       model.rotation.y = rotationY;
 
-      // 1. Identify Separable Parent Groups in Ferrari / Sports GT
+      // ── 1. Register Separable Components (Wheels + Glass) across all 3 model types ──
+      // Tracks node hierarchy top-level groups that represent wheels/glass for CAD click-to-separate.
+      // Ferrari: clean node names (wheel_fl, wheel_fr, wheel_rl, wheel_rr, glass)
+      // Mercedes G63: "3DWheel Front L", "3DWheel Front R", "3DWheel Rear L", "3DWheel Rear R" groups
+      // BMW M2 (sedan): "B1:3DWheel Front L", "B1:3DWheel Front R", etc.
       model.traverse((child) => {
         const nodeName = (child.name || '').toLowerCase();
 
-        // Ferrari Isolated Wheel Groups
+        // Ferrari - simple exact names
         if (nodeName === 'wheel_fl') {
           this.registerSeparableComponent(child, 'wheel_fl', 'Front Left Wheel & Brembo Carbon-Ceramic Caliper', new THREE.Vector3(-1.35, 0, 0));
         } else if (nodeName === 'wheel_fr') {
@@ -362,83 +366,180 @@ export class Scene3D {
           this.registerSeparableComponent(child, 'wheel_rr', 'Rear Right Wheel & Ventilated Disc', new THREE.Vector3(1.35, 0, 0));
         } else if (nodeName === 'glass') {
           this.registerSeparableComponent(child, 'glass', 'Aerodynamic Cockpit Glass Canopy', new THREE.Vector3(0, 1.4, 0));
-        } else if (nodeName.includes('wheel front l') || nodeName.includes('front l_47')) {
-          this.registerSeparableComponent(child, 'wheel_fl', 'Front Left Wheel Assembly', new THREE.Vector3(-1.35, 0, 0));
-        } else if (nodeName.includes('wheel front r') || nodeName.includes('front r_')) {
-          this.registerSeparableComponent(child, 'wheel_fr', 'Front Right Wheel Assembly', new THREE.Vector3(1.35, 0, 0));
-        } else if (nodeName.includes('wheel rear l') || nodeName.includes('rear l_')) {
-          this.registerSeparableComponent(child, 'wheel_rl', 'Rear Left Wheel Assembly', new THREE.Vector3(-1.35, 0, 0));
-        } else if (nodeName.includes('wheel rear r') || nodeName.includes('rear r_')) {
-          this.registerSeparableComponent(child, 'wheel_rr', 'Rear Right Wheel Assembly', new THREE.Vector3(1.35, 0, 0));
+        }
+        // Mercedes G63 & BMW M2 (Sketchfab exports): "3DWheel Front L" / "B1:3DWheel Front L" node groups
+        else if (nodeName.includes('wheel front l') || nodeName.includes('3dwheel front l') || nodeName.includes('front l_47')) {
+          if (!this.separableComponents.has('wheel_fl'))
+            this.registerSeparableComponent(child, 'wheel_fl', 'Front Left Wheel Assembly', new THREE.Vector3(-1.35, 0, 0));
+        } else if (nodeName.includes('wheel front r') || nodeName.includes('3dwheel front r') || nodeName.includes('front r_')) {
+          if (!this.separableComponents.has('wheel_fr'))
+            this.registerSeparableComponent(child, 'wheel_fr', 'Front Right Wheel Assembly', new THREE.Vector3(1.35, 0, 0));
+        } else if (nodeName.includes('wheel rear l') || nodeName.includes('3dwheel rear l') || nodeName.includes('rear l_')) {
+          if (!this.separableComponents.has('wheel_rl'))
+            this.registerSeparableComponent(child, 'wheel_rl', 'Rear Left Wheel Assembly', new THREE.Vector3(-1.35, 0, 0));
+        } else if (nodeName.includes('wheel rear r') || nodeName.includes('3dwheel rear r') || nodeName.includes('rear r_')) {
+          if (!this.separableComponents.has('wheel_rr'))
+            this.registerSeparableComponent(child, 'wheel_rr', 'Rear Right Wheel Assembly', new THREE.Vector3(1.35, 0, 0));
+        }
+        // Window/glass groups for Mercedes and BMW Sketchfab exports
+        else if (
+          (nodeName.includes('window') || nodeName.includes('windowinside') || nodeName.includes('glass')) &&
+          !this.separableComponents.has('glass')
+        ) {
+          // Only register as separable if it's a top-level group (not a mesh)
+          if (!child.isMesh && child.children && child.children.length > 0) {
+            this.registerSeparableComponent(child, 'glass', 'Glazed Window & Glass Assembly', new THREE.Vector3(0, 1.4, 0));
+          }
         }
       });
 
-      // 2. Material Shading and Mesh Registering
+      // ── 2. Universal Multi-Model Material Shading ──
+      // Works across Ferrari (simple names), Mercedes G63 (long Sketchfab poly names), and BMW M2 (B1: prefixed names).
       model.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
+        if (!child.isMesh) return;
 
-          const matName = child.material && child.material.name ? child.material.name.toLowerCase() : '';
-          const nodeName = child.name ? child.name.toLowerCase() : '';
+        child.castShadow = true;
+        child.receiveShadow = true;
 
-          // Identify OEM Paint Panels
-          if (
-            matName.includes('body') || 
-            matName.includes('carpaint') || 
-            matName.includes('coloured') || 
-            matName.includes('paint') ||
-            nodeName.includes('body')
-          ) {
-            child.material = new THREE.MeshPhysicalMaterial({
-              color: this.currentPaintColor,
-              metalness: 0.88,
-              roughness: 0.12,
-              clearcoat: 1.0,
-              clearcoatRoughness: 0.04,
-              reflectivity: 0.98
-            });
-            this.bodyMaterials.push(child.material);
-          } else if (
-            matName.includes('glass') || 
-            matName.includes('window') || 
-            nodeName.includes('glass') || 
-            nodeName.includes('window')
-          ) {
-            // Realistic tinted automotive glass
-            child.material = new THREE.MeshPhysicalMaterial({
-              color: 0x0a1018,
-              metalness: 0.1,
-              roughness: 0.04,
-              transmission: 0.9,
-              ior: 1.52,
-              transparent: true,
-              opacity: 0.88
-            });
-          } else if (
-            matName.includes('wheel') || 
-            matName.includes('rim') || 
-            nodeName.includes('rim') || 
-            nodeName.includes('wheel')
-          ) {
-            // High-luster alloy rims
-            if (child.material) {
-              child.material.metalness = 0.95;
-              child.material.roughness = 0.16;
-            }
-            this.wheels.push(child);
-          } else if (matName.includes('tire') || nodeName.includes('tire')) {
-            if (child.material) {
-              child.material.roughness = 0.85;
-              child.material.metalness = 0.1;
-            }
-            this.wheels.push(child);
-          } else if (matName.includes('brake') || nodeName.includes('brake') || nodeName.includes('caliper')) {
-            if (child.material) {
-              child.material.color = new THREE.Color(0xdc2626); // Brembo Calipers
-              child.material.metalness = 0.8;
-              child.material.roughness = 0.25;
-            }
+        const matName = (child.material && child.material.name) ? child.material.name.toLowerCase() : '';
+        const nodeName = (child.name || '').toLowerCase();
+
+        // ── BODY PAINT detection ──
+        // Ferrari: material name "Body_Color" or node "body"
+        // Mercedes: main panels are polySurface### meshes with the longest Sketchfab material names
+        //   that include the SUV model name but NOT wheel/brake/glass keywords
+        // BMW M2: material names include "coloured" or "paint" (B1BMW...Coloured_Material, B1BMW...Paint_Material)
+        const isBodyPaint =
+          matName.includes('body_color') ||
+          matName.includes('body color') ||
+          matName.includes('carpaint') ||
+          matName.includes('coloured') ||
+          matName.includes('_paint_') ||
+          matName.endsWith('paint_material1') ||
+          matName.endsWith('base_material1') ||  // BMW "Kit0_Base" = painted body panels
+          nodeName === 'body' ||
+          nodeName.includes('coupe') ||
+          // Mercedes G63: polySurface nodes have SUV material names; body panels have long names
+          // that contain the SUV name and are NOT wheel/glass/brake/interior/chrome/rubber/license
+          (type === 'mercedes' && matName.includes('mercedesamg') &&
+            !matName.includes('wheel') && !matName.includes('tire') && !matName.includes('brake') &&
+            !matName.includes('glass') && !matName.includes('window') && !matName.includes('chrome') &&
+            !matName.includes('interior') && !matName.includes('leather') && !matName.includes('rubber') &&
+            !matName.includes('plate') && !matName.includes('badge') && !matName.includes('logo') &&
+            !matName.includes('disk') && !matName.includes('hub') && !matName.includes('caliper') &&
+            !matName.includes('grille') && !matName.includes('light') && !matName.includes('led') &&
+            !matName.includes('carpet') && !matName.includes('carbon') && !matName.includes('trim'));
+
+        // ── GLASS / WINDOW detection ──
+        const isGlass =
+          matName.includes('glass') ||
+          matName.includes('window') ||
+          matName.includes('windshield') ||
+          matName.includes('windowinside') ||
+          matName.endsWith('window_material1') ||
+          matName === 'red_glass' ||
+          nodeName.includes('glass') ||
+          nodeName.includes('window');
+
+        // ── WHEEL / RIM detection ──
+        const isWheel =
+          matName.includes('wheel') ||
+          matName.includes('3dwheel') ||
+          matName.includes('_wheel') ||
+          matName.includes('rim') ||
+          matName.includes('calliperba') ||
+          matName.endsWith('wheel1a_material1') ||
+          nodeName.includes('rim') ||
+          nodeName.includes('wheel') ||
+          nodeName.includes('3dwheel');
+
+        // ── TYRE detection ──
+        const isTyre =
+          matName.includes('tire') ||
+          matName.includes('tyre') ||
+          matName.includes('mat_tire') ||
+          nodeName.includes('tire') ||
+          nodeName.includes('tyre');
+
+        // ── BRAKE / CALIPER detection ──
+        const isBrake =
+          matName.includes('brake') ||
+          matName.includes('caliper') ||
+          matName.includes('mat_tire_brake') ||
+          matName.includes('mat_tire_disk') ||
+          nodeName.includes('brake') ||
+          nodeName.includes('caliper');
+
+        // ── CHROME / TRIM detection ──
+        const isChrome =
+          matName.includes('chrome') ||
+          matName.includes('metal_chrome') ||
+          matName.includes('_chrome') ||
+          matName.includes('grille') ||
+          matName.endsWith('grille1a_material1') ||
+          matName.endsWith('grille2a_material1') ||
+          matName.endsWith('grille3a_material1') ||
+          matName.endsWith('grille4a_material1') ||
+          matName.endsWith('grille5a_material1') ||
+          matName.endsWith('grille6a_material1') ||
+          matName.endsWith('grille7a_material1');
+
+        // ── APPLY MATERIALS ──
+        if (isBodyPaint) {
+          child.material = new THREE.MeshPhysicalMaterial({
+            color: this.currentPaintColor,
+            metalness: 0.88,
+            roughness: 0.12,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.04,
+            reflectivity: 0.98,
+            envMapIntensity: 1.2
+          });
+          this.bodyMaterials.push(child.material);
+
+        } else if (isGlass) {
+          child.material = new THREE.MeshPhysicalMaterial({
+            color: 0x0a1018,
+            metalness: 0.1,
+            roughness: 0.04,
+            transmission: 0.88,
+            ior: 1.52,
+            transparent: true,
+            opacity: 0.86
+          });
+
+        } else if (isTyre) {
+          if (child.material) {
+            child.material.roughness = 0.88;
+            child.material.metalness = 0.05;
+          }
+          this.wheels.push(child);
+
+        } else if (isWheel) {
+          if (child.material) {
+            child.material.metalness = 0.92;
+            child.material.roughness = 0.18;
+          }
+          this.wheels.push(child);
+
+        } else if (isBrake) {
+          if (child.material) {
+            child.material.color = new THREE.Color(0xdc2626);
+            child.material.metalness = 0.8;
+            child.material.roughness = 0.25;
+          }
+
+        } else if (isChrome) {
+          if (child.material) {
+            child.material.metalness = 0.98;
+            child.material.roughness = 0.08;
+          }
+
+        } else {
+          // For all other meshes (interior, dashboard, lights, etc.):
+          // Keep original embedded texture but bump up envmap to look good in studio lighting
+          if (child.material) {
+            if (child.material.envMapIntensity !== undefined) child.material.envMapIntensity = 0.7;
           }
         }
       });
