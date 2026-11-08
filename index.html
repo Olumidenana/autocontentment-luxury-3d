@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AutoContentment × Valmora | Coachbuilt 3D Automotive Experience</title>
+  <title>AutoContentment | 3D Coachbuilt Automotive Experience</title>
   
-  <!-- Premium Editorial Fonts (Cinzel / Plus Jakarta Sans / Space Mono / Syne) -->
+  <!-- Premium Editorial Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
@@ -13,28 +13,11 @@
 </head>
 <body>
   <div id="app">
-    <!-- Fixed 3D WebGL Background Canvas Layer -->
-    <div id="canvas-container" class="webgl-canvas-container"></div>
 
-    <!-- Photorealistic Real-Life Vehicle & Engine Showroom Overlay -->
-    <div id="realStudioContainer" class="real-studio-container"></div>
-
-    <!-- Floating 3D Camera & Inspection Toolbar -->
-    <div class="camera-inspection-toolbar">
-      <div class="toolbar-label">3D CHASSIS & HOOD:</div>
-      <button class="btn-cam-view btn-bonnet-action" id="btnToggleBonnet">
-        <span class="btn-icon">⚙️</span>
-        <span id="bonnetBtnText">OPEN BONNET (HOOD)</span>
-      </button>
-      <button class="btn-cam-view active" data-view="exterior">🏎️ 3D Orbit</button>
-      <button class="btn-cam-view" data-view="engine">🔬 Engine 3D Zoom</button>
-      <button class="btn-cam-view" data-view="wheel">🛞 Brembo Brakes</button>
-      <button class="btn-cam-view" data-view="xray">🔬 X-Ray Chassis</button>
-      <button class="btn-cam-view" id="btnToggleRotate">🔄 360° Spin</button>
-    </div>
-
-    <!-- Luxury Top Navigation Bar -->
-    <header class="luxury-navbar">
+    <!-- ══════════════════════════════════════════════════════════
+         TOP LUXURY NAVIGATION BAR (STICKY & RESPONSIVE HAMBURGER)
+    ══════════════════════════════════════════════════════════════ -->
+    <header class="luxury-navbar" id="mainNav">
       <div class="nav-brand">
         <img src="https://autocontentment.com/uploads/site_photos/5adc6f59e1723d2b255e4f0b3622234e.png" alt="AutoContentment" class="brand-logo" onerror="this.style.display='none'">
         <div class="brand-text">
@@ -43,251 +26,277 @@
         </div>
       </div>
 
-      <nav class="nav-links">
-        <a href="#hero">UNVEIL</a>
-        <a href="#studio-3d">3D STUDIO</a>
-        <a href="#powertrain">POWERTRAIN</a>
-        <a href="#chassis">CHASSIS</a>
-        <a href="#motion-sensor">KINEMATICS</a>
-        <a href="#voice-triage">NEURAL VOICE TRIAGE</a>
-        <a href="#atelier">ATELIER</a>
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle navigation menu">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="nav-links" id="navLinks">
+        <a href="#home" class="nav-link active" data-page="home">HOME</a>
+        <a href="#studio-3d" class="nav-link" data-page="studio-3d">3D STUDIO</a>
+        <a href="#voice-triage" class="nav-link" data-page="voice-triage">VOICE TRIAGE</a>
+        <a href="#kinematics" class="nav-link" data-page="kinematics">KINEMATICS</a>
+        <a href="#atelier" class="nav-link" data-page="atelier">ATELIER</a>
+        <a href="#booking" class="nav-link" data-page="booking">BOOKING</a>
       </nav>
 
       <div class="nav-actions">
-        <div class="nav-badge">
+        <div class="nav-status-badge">
           <span class="dot-online"></span>
-          <span>LAGOS / MODENA SPEC</span>
+          <span class="nav-status-text">LAGOS / MODENA SPEC</span>
         </div>
-        <a href="#private-viewing" class="btn-nav-action">INSPECT CHASSIS</a>
+        <a href="#studio-3d" class="btn-nav-action">INSPECT 3D</a>
       </div>
     </header>
 
-    <!-- Vehicle Selector HUD Bar -->
-    <div class="vehicle-selector-wrapper" id="vehicleSelectorContainer">
-      <!-- Injected dynamically by carSelector.js -->
-    </div>
-
-    <!-- Main Scrollable Storyboard Sections -->
-    <main class="story-content">
-      
-      <!-- 1. Hero Section: Valmora Tachometer & Unveiling -->
-      <section id="hero" class="section-hero">
-        <div class="hero-left-tachometer" id="tachometerContainer">
+    <!-- ══════════════════════════════════════════════════════════
+         PAGE 1: HOME (HERO + TACHOMETER + VEHICLE SELECTOR)
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="home" class="page page-home active-page">
+      <div class="home-hero">
+        <div class="hero-tachometer-col" id="tachometerContainer">
           <!-- Injected dynamically by tachometer.js -->
         </div>
 
-        <div class="hero-center-titles">
+        <div class="hero-content-col">
           <div class="hero-eyebrow">AUTOCONTENTMENT BESPOKE AUTOMOTIVE</div>
-          <h1 class="hero-title">COACHBUILT</h1>
-          <p class="hero-subhead">
-            A classic grand tourer unveiled on the scrollbar. 1,400 hours of hand-beaten aluminium, sculpted into an unyielding aerodynamic sculpture.
+          <h1 class="hero-title">COACHBUILT<br><span class="hero-title-accent">3D STUDIO</span></h1>
+          <p class="hero-desc">
+            Explore 24+ factory-accurate models across Ferrari GT, Mercedes-Benz, Toyota, Lexus, and Honda.
+            Open the bonnet to inspect the real-world twin-turbo V8 or V6 engine bay, pull apart wheels in CAD view,
+            and use neural voice triage for roadside safety.
           </p>
-          <div class="hero-scroll-indicator">
-            <span class="scroll-arrow">↓</span>
-            <span class="scroll-label">SCROLL TO PEEL DUST SHEET & TOUR CHASSIS</span>
+          <div class="hero-cta-row">
+            <a href="#studio-3d" class="btn-cta-primary">LAUNCH 3D STUDIO</a>
+            <a href="#voice-triage" class="btn-cta-secondary">EMERGENCY VOICE TRIAGE</a>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- 2. DEDICATED 3D AUTOMOTIVE STUDIO & SHOWROOM SECTION -->
-      <section id="studio-3d" class="section-dedicated-3d">
-        <div class="dedicated-3d-card">
-          <div class="studio-header-row">
-            <div class="studio-badge-pill">
-              <span class="pulse-emerald"></span>
-              <span>DEDICATED 3D DIGITAL TWIN ATELIER</span>
-            </div>
-            <div class="studio-controls-hint">
-              <span>🖱️ TOUCH / CLICK-DRAG: 360° ORBIT • WHEEL: ZOOM • RIGHT CLICK: PAN</span>
-            </div>
+      <!-- Vehicle Selector HUD Bar (24+ Models across 5 Brands with Exact Production Years) -->
+      <div class="vehicle-selector-wrapper" id="vehicleSelectorContainer">
+        <!-- Injected dynamically by carSelector.js -->
+      </div>
+
+      <!-- Powertrain quick spec cards -->
+      <div class="home-spec-grid">
+        <div class="spec-card">
+          <div class="spec-label">POWERPLANT</div>
+          <div class="spec-val" id="homeSpecEngine">3.9L Twin-Turbo 90° V8 F154</div>
+        </div>
+        <div class="spec-card">
+          <div class="spec-label">PEAK POWER</div>
+          <div class="spec-val" id="homeSpecPower">612 bhp @ 7,500 rpm</div>
+        </div>
+        <div class="spec-card">
+          <div class="spec-label">TOP SPEED</div>
+          <div class="spec-val" id="homeSpecSpeed">320 km/h (199 mph)</div>
+        </div>
+        <div class="spec-card">
+          <div class="spec-label">0–100 KM/H</div>
+          <div class="spec-val" id="homeSpecAccel">3.45 Seconds</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         PAGE 2: DEDICATED 3D AUTOMOTIVE STUDIO & SHOWROOM
+         (100% UNOBSTRUCTED FULL-VIEWPORT 3D CANVAS, NO OVERLAYS)
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="studio-3d" class="page page-studio">
+      <!-- Direct WebGL 3D Canvas Container (inline inside studio only) -->
+      <div id="canvas-container" class="studio-canvas-container"></div>
+
+      <!-- Bottom Studio HUD Bar (stays pinned at bottom, completely unobtrusive) -->
+      <div class="studio-hud-bar">
+        <div class="studio-hud-left">
+          <div class="studio-car-pill">
+            <span class="live-dot-green"></span>
+            <span class="studio-car-label" id="studioCarLabel">Ferrari Portofino M (2019–2024)</span>
           </div>
-
-          <h2 class="studio-section-title">REAL-TIME 3D CHASSIS & ENGINE BAY</h2>
-          <p class="studio-section-desc">
-            Directly touch and rotate your chosen vehicle in high-definition 3D. Open the bonnet to inspect the 12V battery, radiator cap, oil dipstick, and brake fluid master cylinder.
-          </p>
-
-          <!-- Interactive 3D Action Controls -->
-          <div class="dedicated-stage-toolbar">
-            <button class="btn-stage-action btn-stage-bonnet" id="btnStageBonnet">
-              <span class="stage-btn-icon">⚙️</span>
-              <span id="stageBonnetText">OPEN BONNET (HOOD)</span>
-            </button>
-            <button class="btn-stage-action active" data-stage-view="exterior">
-              <span>🏎️ 3D Orbit View</span>
-            </button>
-            <button class="btn-stage-action" data-stage-view="engine">
-              <span>🔬 Engine Bay Zoom</span>
-            </button>
-            <button class="btn-stage-action" data-stage-view="wheel">
-              <span>🛞 Brembo Brakes</span>
-            </button>
-            <button class="btn-stage-action" data-stage-view="xray">
-              <span>🔬 X-Ray Chassis</span>
-            </button>
-            <button class="btn-stage-action" id="btnStageSpin">
-              <span>🔄 360° Auto-Spin</span>
-            </button>
-            <button class="btn-stage-action btn-stage-reset" id="btnStageReset">
-              <span>🧲 RESET ASSEMBLY</span>
-            </button>
-          </div>
-
-          <div class="cad-inspect-hint-badge">
-            <span>💡 SOLIDWORKS CAD INSPECTION: Click any Wheel, Glass Canopy, or Bonnet directly in 3D to separate & inspect. Click again or Reset to lock into place!</span>
-          </div>
-
-          <!-- Open View Window onto the 3D Canvas -->
-          <div class="dedicated-3d-viewport-window">
-            <div class="viewport-watermark">AUTOCONTENTMENT 3D CANVAS • INTERACTIVE ORBIT</div>
+          <div class="studio-hint">
+            <span>🖱️ DRAG: 360° ORBIT • ⚙️ CLICK WHEEL / CANOPY: SEPARATE • 🔩 BONNET: ENGINE BAY</span>
           </div>
         </div>
-      </section>
 
-      <!-- 3. The Sheet Comes Off Section -->
-      <section id="sheet-reveal" class="section-editorial">
-        <div class="editorial-card reveal-text">
-          <div class="card-eyebrow">PRIVATE VIEWING PROTOCOL</div>
-          <h2 class="card-title">THE SHEET COMES OFF<br><span>once a month.</span></h2>
-          <p class="card-desc">
-            Viewings and pre-purchase vehicle verifications are held by private appointment. Every bolt, weld line, and transmission solenoid is tested before handover to ensure complete freedom from roadside mechanic fraud.
-          </p>
-          <div class="card-stats-row">
-            <div class="stat-item">
-              <span class="stat-num">1,400</span>
-              <span class="stat-lbl">HOURS OF HAND-BEATEN ALUMINIUM</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-num">610</span>
-              <span class="stat-lbl">BRAKE HORSEPOWER (V8 TWIN-TURBO)</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-num">324</span>
-              <span class="stat-lbl">TOP SPEED (KM/H)</span>
-            </div>
+        <div class="studio-hud-controls">
+          <button class="btn-studio-action btn-bonnet-action" id="btnToggleBonnet">
+            <span class="btn-action-icon">🔩</span>
+            <span id="bonnetBtnText">OPEN BONNET (HOOD)</span>
+          </button>
+          <button class="btn-studio-action active" data-view="exterior">🚗 3D ORBIT</button>
+          <button class="btn-studio-action" data-view="engine">🔧 ENGINE BAY</button>
+          <button class="btn-studio-action" data-view="wheel">🛞 BREMBO BRAKES</button>
+          <button class="btn-studio-action" data-view="xray">🔬 X-RAY CHASSIS</button>
+          <button class="btn-studio-action" id="btnToggleRotate">↻ 360° SPIN</button>
+          <button class="btn-studio-action btn-reset-action" id="btnStageReset">🧲 RESET ASSEMBLY</button>
+        </div>
+
+        <div class="studio-hud-right">
+          <div class="studio-paint-row">
+            <span class="paint-row-label">LIVERY:</span>
+            <button class="studio-swatch active" data-color="0xC41E3A" style="--sc:#C41E3A" title="Rosso Corsa Racing Red"></button>
+            <button class="studio-swatch" data-color="0x0C813D" style="--sc:#0C813D" title="AutoContentment Emerald"></button>
+            <button class="studio-swatch" data-color="0x0C0E14" style="--sc:#0C0E14" title="Modena Onyx Black"></button>
+            <button class="studio-swatch" data-color="0xBAC0C6" style="--sc:#BAC0C6" title="Iridium Silver Metallic"></button>
+            <button class="studio-swatch" data-color="0x5A626A" style="--sc:#5A626A" title="Titanium Grigio"></button>
+            <button class="studio-swatch" data-color="0xC8A951" style="--sc:#C8A951" title="Champagne Gold"></button>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- 3. Powertrain Architecture & Holographic V8 -->
-      <section id="powertrain" class="section-powertrain">
-        <div class="powertrain-card reveal-text">
-          <div class="card-eyebrow">TWIN-TURBO V8 POWERTRAIN</div>
-          <h2 class="card-title">OPEN HOOD & ENGINE INSPECTION</h2>
-          <p class="card-desc">
-            The hood panel swings open smoothly on its hinges to expose the cast aluminium engine block, high-flow intake plenum, red valve covers, and twin turbochargers. Click <strong>"Open Hood / Inspect Engine"</strong> on the top camera bar to zoom inside.
-          </p>
-          <div class="telemetry-tags">
-            <span class="telemetry-pill">CAST ALUMINIUM BLOCK</span>
-            <span class="telemetry-pill">TWIN TURBOCHARGERS</span>
-            <span class="telemetry-pill">VARIABLE VALVE TIMING</span>
-            <span class="telemetry-pill">ACTIVE OIL SOLENOIDS</span>
+    <!-- ══════════════════════════════════════════════════════════
+         PAGE 3: ROADSIDE FIRST-AID & NEURAL VOICE TRIAGE
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="voice-triage" class="page page-voice">
+      <div class="page-inner-voice">
+        <div class="voice-top-header">
+          <div class="voice-nav-switch">
+            <a href="#studio-3d" class="btn-switch-studio">
+              <span>↗</span> OPEN FULL 3D CHASSIS STUDIO
+            </a>
           </div>
         </div>
-      </section>
 
-      <!-- 4. Chassis, Suspension & Brembo Brakes -->
-      <section id="chassis" class="section-chassis">
-        <div class="chassis-card reveal-text">
-          <div class="card-eyebrow">CHASSIS & BRAKING DYNAMICS</div>
-          <h2 class="card-title">BREMBO CERAMIC × DOUBLE WISHBONE</h2>
-          <p class="card-desc">
-            Monobloc 6-piston front calipers finished in signature AutoContentment Emerald clamp 390mm carbon-ceramic ventilated discs. Tuned for Nigerian road conditions to withstand sudden crater impacts and rapid deceleration.
-          </p>
-          <div class="spec-matrix">
-            <div class="matrix-cell">
-              <span class="cell-label">FRONT ROTORS</span>
-              <span class="cell-val">390mm Carbon-Ceramic</span>
-            </div>
-            <div class="matrix-cell">
-              <span class="cell-label">REAR ROTORS</span>
-              <span class="cell-val">360mm Ventilated</span>
-            </div>
-            <div class="matrix-cell">
-              <span class="cell-label">CALIPERS</span>
-              <span class="cell-val">AutoContentment Emerald</span>
-            </div>
-            <div class="matrix-cell">
-              <span class="cell-label">WEIGHT DIST.</span>
-              <span class="cell-val">48:52 Front-to-Rear</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 5. Vehicle vs Human Kinematics Motion Sensor -->
-      <section id="motion-sensor" class="section-motion">
-        <div class="motion-sensor-container" id="motionSensorContainer">
-          <!-- Injected dynamically by motionSensor.js -->
-        </div>
-      </section>
-
-      <!-- 6. Real-Time Speech Perception & Scam Shield -->
-      <section id="voice-triage" class="section-scam-shield">
+        <!-- Voice Diagnostic Container -->
         <div class="scam-shield-container" id="voiceDiagnosticContainer">
           <!-- Injected dynamically by voiceDiagnostic.js -->
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- 6. Specification Atelier (Interactive 3D Color Customizer) -->
-      <section id="atelier" class="section-atelier">
-        <div class="atelier-card reveal-text">
-          <div class="card-eyebrow">BESPOKE SPECIFICATION ATELIER</div>
-          <h2 class="card-title">CUSTOMIZE CHASSIS LIVERY</h2>
-          <p class="card-desc">
-            Select an official exterior livery to witness the real-time clearcoat and metallic flake reflection changes on the 3D vehicle model.
+    <!-- ══════════════════════════════════════════════════════════
+         PAGE 4: VEHICLE VS HUMAN KINEMATICS & MOTION SENSOR
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="kinematics" class="page page-kinematics">
+      <div class="page-inner">
+        <div class="page-heading">
+          <div class="page-eyebrow">VEHICLE VS HUMAN KINEMATICS</div>
+          <h2 class="page-title">SPEEDOMETER & ROAD SHOCK KINEMATICS</h2>
+          <p class="page-desc">
+            Simulate acceleration, suspension heave, wheel rotational velocity and pothole shock recoil directly synchronized to the 3D model.
           </p>
+        </div>
+        <div class="motion-sensor-container" id="motionSensorContainer">
+          <!-- Injected dynamically by motionSensor.js -->
+        </div>
+      </div>
+    </section>
 
-          <div class="paint-selector">
-            <button class="paint-swatch active" data-color="0x0C813D" style="--swatch-color: #0C813D;">
+    <!-- ══════════════════════════════════════════════════════════
+         PAGE 5: BESPOKE SPECIFICATION ATELIER
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="atelier" class="page page-atelier">
+      <div class="page-inner">
+        <div class="page-heading">
+          <div class="page-eyebrow">BESPOKE SPECIFICATION ATELIER</div>
+          <h2 class="page-title">CUSTOMIZE CHASSIS LIVERY</h2>
+          <p class="page-desc">
+            Select an official OEM exterior paint formula. Metallic flakes, clearcoat reflectivity, and shadow mapping update instantaneously on the 3D car.
+          </p>
+        </div>
+
+        <div class="atelier-paint-grid">
+          <button class="paint-swatch active" data-color="0xC41E3A" style="--swatch-color:#C41E3A">
+            <span class="swatch-dot"></span>
+            <div class="swatch-info">
+              <span class="swatch-name">Rosso Corsa Racing Red</span>
+              <span class="swatch-code">Ferrari Code FER322</span>
+            </div>
+          </button>
+          <button class="paint-swatch" data-color="0x0C813D" style="--swatch-color:#0C813D">
+            <span class="swatch-dot"></span>
+            <div class="swatch-info">
               <span class="swatch-name">AutoContentment Emerald</span>
-            </button>
-            <button class="paint-swatch" data-color="0x7A0016" style="--swatch-color: #7A0016;">
-              <span class="swatch-name">Oxblood Rosso 1964</span>
-            </button>
-            <button class="paint-swatch" data-color="0x0C0E14" style="--swatch-color: #0C0E14;">
+              <span class="swatch-code">Bespoke Code AC01</span>
+            </div>
+          </button>
+          <button class="paint-swatch" data-color="0x0C0E14" style="--swatch-color:#0C0E14">
+            <span class="swatch-dot"></span>
+            <div class="swatch-info">
               <span class="swatch-name">Modena Onyx Black</span>
-            </button>
-            <button class="paint-swatch" data-color="0x5A626A" style="--swatch-color: #5A626A;">
+              <span class="swatch-code">Solid Deep Gloss</span>
+            </div>
+          </button>
+          <button class="paint-swatch" data-color="0xBAC0C6" style="--swatch-color:#BAC0C6">
+            <span class="swatch-dot"></span>
+            <div class="swatch-info">
+              <span class="swatch-name">Iridium Silver Metallic</span>
+              <span class="swatch-code">Mercedes-Benz Code 775</span>
+            </div>
+          </button>
+          <button class="paint-swatch" data-color="0x5A626A" style="--swatch-color:#5A626A">
+            <span class="swatch-dot"></span>
+            <div class="swatch-info">
               <span class="swatch-name">Titanium Grigio</span>
-            </button>
-            <button class="paint-swatch" data-color="0xC8A951" style="--swatch-color: #C8A951;">
+              <span class="swatch-code">Anodized Satin Matte</span>
+            </div>
+          </button>
+          <button class="paint-swatch" data-color="0xC8A951" style="--swatch-color:#C8A951">
+            <span class="swatch-dot"></span>
+            <div class="swatch-info">
               <span class="swatch-name">Champagne Gold</span>
-            </button>
-          </div>
+              <span class="swatch-code">Pearlescent Gold Leaf</span>
+            </div>
+          </button>
+          <button class="paint-swatch" data-color="0x1a3a6b" style="--swatch-color:#1a3a6b">
+            <span class="swatch-dot"></span>
+            <div class="swatch-info">
+              <span class="swatch-name">Blu Pozzi Metallic</span>
+              <span class="swatch-code">Heritage Deep Marine</span>
+            </div>
+          </button>
+          <button class="paint-swatch" data-color="0xF5F5F0" style="--swatch-color:#F5F5F0">
+            <span class="swatch-dot"></span>
+            <div class="swatch-info">
+              <span class="swatch-name">Bianco Avus Pearl</span>
+              <span class="swatch-code">High-Luster White</span>
+            </div>
+          </button>
         </div>
-      </section>
 
-      <!-- 7. Private Viewing & Inspection Booking Form -->
-      <section id="private-viewing" class="section-booking">
-        <div class="booking-card reveal-text">
-          <div class="card-eyebrow">ALLOCATION & PRE-PURCHASE INSPECTION</div>
-          <h2 class="card-title">REQUEST AN INVITATION</h2>
-          <p class="card-desc">
-            Whether buying through AutoContentment or verifying a prospective vehicle before payment, our engineering team inspects all 148 chassis checkpoints.
+        <div class="atelier-footer-action">
+          <a href="#studio-3d" class="btn-cta-primary">VIEW LIVERY IN 3D STUDIO →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         PAGE 6: INVITATION & PRE-PURCHASE INSPECTION BOOKING
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="booking" class="page page-booking">
+      <div class="page-inner">
+        <div class="page-heading">
+          <div class="page-eyebrow">ALLOCATION & PRE-PURCHASE INSPECTION</div>
+          <h2 class="page-title">REQUEST AN INVITATION</h2>
+          <p class="page-desc">
+            Whether acquiring through AutoContentment or validating a car before transferring funds in Lagos or Abuja, our engineering team executes all 148 chassis checkpoints.
           </p>
-
-          <form class="booking-form" onsubmit="event.preventDefault(); alert('Invitation request received. An AutoContentment concierge will contact you within 2 hours.');">
-            <div class="form-row">
-              <input type="text" placeholder="Your Full Name" required class="input-field">
-              <input type="email" placeholder="Email Address" required class="input-field">
-            </div>
-            <div class="form-row">
-              <input type="tel" placeholder="WhatsApp / Phone Number" required class="input-field">
-              <select class="input-field">
-                <option value="autocontentment-gt">Valmora GT Coachbuilt Viewing</option>
-                <option value="pre-purchase-inspection">Pre-Purchase Car Inspection (Lagos)</option>
-                <option value="verified-parts">Verified OEM Parts Fulfillment</option>
-              </select>
-            </div>
-            <button type="submit" class="btn-submit-booking">CONFIRM INVITATION REQUEST</button>
-          </form>
         </div>
-      </section>
+
+        <form class="booking-form" onsubmit="event.preventDefault(); alert('Invitation request received. An AutoContentment concierge will contact you within 2 hours.');">
+          <div class="form-row">
+            <input type="text" placeholder="Your Full Name" required class="input-field">
+            <input type="email" placeholder="Email Address" required class="input-field">
+          </div>
+          <div class="form-row">
+            <input type="tel" placeholder="WhatsApp / Phone Number (+234)" required class="input-field">
+            <select class="input-field">
+              <option value="autocontentment-gt">Valmora GT Coachbuilt Viewing</option>
+              <option value="pre-purchase-inspection">Pre-Purchase Car Inspection (Lagos / Abuja)</option>
+              <option value="verified-parts">Verified OEM Parts Fulfillment</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <textarea placeholder="Vehicle details or specific concerns (e.g. Mercedes E350 transmission check, mileage inspection)" class="input-field" rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn-submit-booking">CONFIRM INVITATION REQUEST</button>
+        </form>
+      </div>
 
       <!-- Luxury Footer -->
       <footer class="luxury-footer">
-        <div class="footer-top">
+        <div class="footer-inner">
           <div class="footer-brand">
             <img src="https://autocontentment.com/uploads/site_photos/5adc6f59e1723d2b255e4f0b3622234e.png" alt="AutoContentment" class="footer-logo" onerror="this.style.display='none'">
             <span>AUTOCONTENTMENT AUTOMOTIVE</span>
@@ -297,13 +306,11 @@
             <a href="https://wa.me/2348000000000" target="_blank">WhatsApp Concierge</a>
             <a href="https://github.com/Olumidenana/autocontentment-luxury-3d" target="_blank">GitHub Repository</a>
           </div>
-        </div>
-        <div class="footer-bottom">
-          <p>&copy; 2026 AutoContentment. Engineered with WebGL, Three.js & Lenis. All rights reserved.</p>
+          <div class="footer-copy">© 2026 AutoContentment. Engineered with WebGL, Three.js & Modern CSS. All rights reserved.</div>
         </div>
       </footer>
+    </section>
 
-    </main>
   </div>
 
   <script type="module" src="/src/main.js"></script>

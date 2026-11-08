@@ -1,144 +1,190 @@
 import { Scene3D } from './components/scene3d.js';
 import { Tachometer } from './components/tachometer.js';
 import { SoundSynth } from './components/soundSynth.js';
-import { ScrollController } from './components/scrollController.js';
 import { VoiceDiagnostic } from './components/voiceDiagnostic.js';
 import { CarSelector } from './components/carSelector.js';
 import { MotionSensor } from './components/motionSensor.js';
-import { RealStudioViewer } from './components/realStudioViewer.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-  // 1. Initialize 3D WebGL Canvas
-  const canvasContainer = document.getElementById('canvas-container');
-  const scene3D = new Scene3D(canvasContainer);
-  if (canvasContainer) {
-    canvasContainer.style.pointerEvents = 'auto';
-  }
+// ─── Multi-Page Router ────────────────────────────────────────────────────────
+const PAGES = ['home', 'studio-3d', 'voice-triage', 'kinematics', 'atelier', 'booking'];
+let activePageId = 'home';
+let scene3D = null;
 
-  // 2. Initialize Floating Real-Life Studio HUD (Specs & Anti-Scam Shield)
-  const studioContainer = document.getElementById('realStudioContainer');
-  const realStudioViewer = new RealStudioViewer(studioContainer, () => {
-    scene3D.toggleBonnet();
+function showPage(pageId) {
+  if (!PAGES.includes(pageId)) return;
+  activePageId = pageId;
+
+  // 1. Show only the targeted page section
+  PAGES.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.toggle('active-page', id === pageId);
+    }
   });
 
-  // 3. Initialize V8 Exhaust Note Synthesizer
+  // 2. Update active link in top navbar
+  document.querySelectorAll('.nav-link').forEach(link => {
+    const target = link.getAttribute('href')?.replace('#', '');
+    link.classList.toggle('active', target === pageId);
+  });
+
+  // 3. Close mobile hamburger menu
+  const navLinks = document.getElementById('navLinks');
+  const hamburger = document.getElementById('hamburgerBtn');
+  if (navLinks && hamburger) {
+    navLinks.classList.remove('mobile-open');
+    hamburger.classList.remove('open');
+  }
+
+  // 4. If navigating to 3D Studio, ensure Three.js canvas resizes to the container immediately
+  if (pageId === 'studio-3d' && scene3D) {
+    requestAnimationFrame(() => {
+      scene3D.handleResize();
+    });
+    setTimeout(() => {
+      if (scene3D) scene3D.handleResize();
+    }, 100);
+  }
+
+  // 5. Update browser history/hash without jumping scroll
+  if (window.location.hash !== `#${pageId}`) {
+    history.pushState(null, '', `#${pageId}`);
+  }
+}
+
+function handleHashChange() {
+  const hash = window.location.hash.replace('#', '') || 'home';
+  if (PAGES.includes(hash)) {
+    showPage(hash);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ─── 1. Hamburger Navigation for Mobile ────────────────────────────────────
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const navLinks = document.getElementById('navLinks');
+  if (hamburgerBtn && navLinks) {
+    hamburgerBtn.addEventListener('click', () => {
+      const isOpen = navLinks.classList.toggle('mobile-open');
+      hamburgerBtn.classList.toggle('open', isOpen);
+    });
+  }
+
+  // Nav link click events
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const pageId = link.getAttribute('href')?.replace('#', '');
+      if (pageId) showPage(pageId);
+    });
+  });
+
+  // Cross-page CTA links
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    if (!link.classList.contains('nav-link')) {
+      link.addEventListener('click', (e) => {
+        const pageId = link.getAttribute('href')?.replace('#', '');
+        if (pageId && PAGES.includes(pageId)) {
+          e.preventDefault();
+          showPage(pageId);
+        }
+      });
+    }
+  });
+
+  // ─── 2. Initialize V8 Exhaust Sound Synthesizer ────────────────────────────
   const soundSynth = new SoundSynth();
 
-  // 4. Initialize Sweeping Tachometer Gauge
+  // ─── 3. Initialize Tachometer ──────────────────────────────────────────────
   const tachoContainer = document.getElementById('tachometerContainer');
   const tachometer = new Tachometer(tachoContainer, soundSynth);
 
-  // 5. Initialize Car Model Selector HUD
+  // ─── 4. Initialize 3D WebGL Canvas in Dedicated Studio ─────────────────────
+  const canvasContainer = document.getElementById('canvas-container');
+  if (canvasContainer) {
+    scene3D = new Scene3D(canvasContainer);
+    canvasContainer.style.pointerEvents = 'auto';
+  }
+
+  // ─── 5. Initialize Vehicle Selector (24+ Models across 5 Brands) ───────────
+  const updateSpecCards = (vehicle) => {
+    if (!vehicle || !vehicle.model) return;
+    const model = vehicle.model;
+    const spec = model.spec || '';
+    const parts = spec.split('•').map(s => s.trim());
+    const powerPart = parts.find(p => p.includes('bhp') || p.includes('hp')) || '612 bhp';
+    const speedPart = parts.find(p => p.includes('km/h') || p.includes('mph')) || '320 km/h';
+    const accelPart = parts.find(p => p.includes('s') && (p.includes('.') || p.includes('0–'))) || '3.45s';
+
+    const setEl = (id, text) => {
+      const el = document.getElementById(id);
+      if (el && text) el.textContent = text;
+    };
+
+    setEl('homeSpecEngine', model.engine?.split('(')[0]?.trim() || model.engine);
+    setEl('homeSpecPower', powerPart);
+    setEl('homeSpecSpeed', speedPart);
+    setEl('homeSpecAccel', accelPart);
+
+    // Update Studio Car Label in bottom bar
+    const studioLabel = document.getElementById('studioCarLabel');
+    if (studioLabel) {
+      studioLabel.textContent = `${vehicle.brandName || ''} ${model.name || ''}`.trim();
+    }
+  };
+
   const selectorContainer = document.getElementById('vehicleSelectorContainer');
   const carSelector = new CarSelector(selectorContainer, (selectedVehicle) => {
     console.log("Selected vehicle changed:", selectedVehicle);
-    if (realStudioViewer) {
-      realStudioViewer.setVehicle(selectedVehicle);
-    }
+    updateSpecCards(selectedVehicle);
+
     if (scene3D && selectedVehicle.model) {
       scene3D.setVehicleModel(
-        selectedVehicle.brand, 
-        selectedVehicle.model.id, 
-        selectedVehicle.model.oemHex, 
+        selectedVehicle.brand,
+        selectedVehicle.model.id,
+        selectedVehicle.model.oemHex,
         selectedVehicle.model
       );
     }
   });
 
-  // Initial vehicle setup (Mercedes-Benz E350 W212 default)
+  // Apply default selected vehicle on load (Ferrari Portofino GT Sports Car)
   const initialVehicle = carSelector.getSelectedVehicle();
-  if (realStudioViewer) {
-    realStudioViewer.setVehicle(initialVehicle);
-  }
-  if (scene3D && initialVehicle.model) {
+  updateSpecCards(initialVehicle);
+  if (scene3D && initialVehicle?.model) {
     scene3D.setVehicleModel(
-      initialVehicle.brand, 
-      initialVehicle.model.id, 
-      initialVehicle.model.oemHex, 
+      initialVehicle.brand,
+      initialVehicle.model.id,
+      initialVehicle.model.oemHex,
       initialVehicle.model
     );
   }
 
-  // 6. Initialize Smooth Inertia Scroll & GSAP ScrollTrigger
-  const scrollController = new ScrollController(scene3D, tachometer);
-
-  // 7. Initialize Motion Sensor & Wire Speedometer Sensation to 3D Scene
-  const motionContainer = document.getElementById('motionSensorContainer');
-  const motionSensor = new MotionSensor(motionContainer, (mode, speed, distance, gForce = 1.0) => {
-    // 1. Live Speedometer Kinematics in 3D (wheel rotation, road stream, suspension heave, pothole shock)
-    if (scene3D) {
-      scene3D.setVehicleSpeed(speed, gForce);
-    }
-    // 2. Live Tachometer & Gearbox update
-    if (tachometer) {
-      tachometer.setSpeed(speed);
-    }
-    // 3. Audio acceleration & throttle drone
-    if (soundSynth) {
-      soundSynth.setSpeedAudio(speed);
-    }
-  });
-
-  // 8. Initialize Real-Time Voice Perception & First Aid 3D Teleport
-  const voiceContainer = document.getElementById('voiceDiagnosticContainer');
-  const voiceDiagnostic = new VoiceDiagnostic(
-    voiceContainer, 
-    () => carSelector.getSelectedVehicle(),
-    () => scene3D,
-    () => realStudioViewer
-  );
-
-  // 9. Interactive 3D Bonnet & Camera Toolbar (Both floating toolbar and dedicated 3D section)
+  // ─── 6. 3D Studio Controls ────────────────────────────────────────────────
   const btnBonnet = document.getElementById('btnToggleBonnet');
   const bonnetText = document.getElementById('bonnetBtnText');
-  const btnStageBonnet = document.getElementById('btnStageBonnet');
-  const stageBonnetText = document.getElementById('stageBonnetText');
 
   const updateBonnetButtons = (isOpen) => {
     if (btnBonnet) btnBonnet.classList.toggle('active', isOpen);
     if (bonnetText) bonnetText.textContent = isOpen ? 'CLOSE BONNET' : 'OPEN BONNET (HOOD)';
-    if (btnStageBonnet) btnStageBonnet.classList.toggle('active', isOpen);
-    if (stageBonnetText) stageBonnetText.textContent = isOpen ? 'CLOSE BONNET (HOOD)' : 'OPEN BONNET (HOOD)';
   };
 
   if (btnBonnet) {
     btnBonnet.addEventListener('click', () => {
-      const isOpen = scene3D.toggleBonnet();
-      updateBonnetButtons(isOpen);
+      if (scene3D) {
+        const isOpen = scene3D.toggleBonnet();
+        updateBonnetButtons(isOpen);
+      }
     });
   }
 
-  if (btnStageBonnet) {
-    btnStageBonnet.addEventListener('click', () => {
-      const isOpen = scene3D.toggleBonnet();
-      updateBonnetButtons(isOpen);
-    });
-  }
+  // Camera viewpoints in studio
+  const studioViewButtons = document.querySelectorAll('.btn-studio-action[data-view]');
+  const handleStudioCameraChange = (view) => {
+    studioViewButtons.forEach(b => b.classList.toggle('active', b.dataset.view === view));
 
-  // 10. SolidWorks CAD Reset Assembly Button
-  const btnStageReset = document.getElementById('btnStageReset');
-  if (btnStageReset) {
-    btnStageReset.addEventListener('click', () => {
-      scene3D.resetAllSeparations();
-      updateBonnetButtons(false);
-      handleCameraChange('exterior');
-    });
-  }
-
-  // Listen for First Aid Triage events triggered from direct 3D raycast clicks
-  window.addEventListener('firstAidTriageTriggered', (e) => {
-    updateBonnetButtons(true);
-    if (voiceDiagnostic && voiceDiagnostic.focusComponent) {
-      voiceDiagnostic.focusComponent(e.detail.componentId);
-    }
-  });
-
-  const camButtons = document.querySelectorAll('.btn-cam-view:not(.btn-bonnet-action)');
-  const stageButtons = document.querySelectorAll('.btn-stage-action[data-stage-view]');
-
-  const handleCameraChange = (view) => {
-    camButtons.forEach(b => b.classList.toggle('active', b.dataset.view === view));
-    stageButtons.forEach(b => b.classList.toggle('active', b.dataset.stageView === view));
+    if (!scene3D) return;
 
     if (view === 'engine') {
       scene3D.openBonnet(true);
@@ -152,40 +198,94 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  camButtons.forEach(btn => {
+  studioViewButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      if (btn.dataset.view) handleCameraChange(btn.dataset.view);
+      if (btn.dataset.view) handleStudioCameraChange(btn.dataset.view);
     });
   });
 
-  stageButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.stageView) handleCameraChange(btn.dataset.stageView);
+  // Reset Assembly Button (SolidWorks CAD Reseat)
+  const btnReset = document.getElementById('btnStageReset');
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      if (scene3D) {
+        scene3D.resetAllSeparations();
+        updateBonnetButtons(false);
+        handleStudioCameraChange('exterior');
+      }
     });
-  });
+  }
 
-  const btnRotate = document.getElementById('btnToggleRotate');
-  const btnStageSpin = document.getElementById('btnStageSpin');
+  // 360 Spin Toggle
+  const btnSpin = document.getElementById('btnToggleRotate');
+  if (btnSpin) {
+    btnSpin.addEventListener('click', () => {
+      if (scene3D) {
+        const active = scene3D.toggleAutoRotate();
+        btnSpin.classList.toggle('active', active);
+      }
+    });
+  }
 
-  const toggleSpin = () => {
-    const active = scene3D.toggleAutoRotate();
-    if (btnRotate) btnRotate.classList.toggle('active', active);
-    if (btnStageSpin) btnStageSpin.classList.toggle('active', active);
-  };
-
-  if (btnRotate) btnRotate.addEventListener('click', toggleSpin);
-  if (btnStageSpin) btnStageSpin.addEventListener('click', toggleSpin);
-
-  // 10. Atelier Paint Swatches (Real-Time 3D Color Change)
-  const swatches = document.querySelectorAll('.paint-swatch');
-  swatches.forEach(swatch => {
+  // Studio compact paint swatches in bottom bar
+  const studioSwatches = document.querySelectorAll('.studio-swatch');
+  studioSwatches.forEach(swatch => {
     swatch.addEventListener('click', () => {
-      swatches.forEach(s => s.classList.remove('active'));
+      studioSwatches.forEach(s => s.classList.remove('active'));
       swatch.classList.add('active');
       const hex = parseInt(swatch.dataset.color, 16);
-      scene3D.setCarPaint(hex);
+      if (scene3D) scene3D.setCarPaint(hex);
     });
   });
 
-  console.log("AutoContentment 3D Real-Life Engine & Chassis Experience Ready.");
+  // Full Atelier paint swatches
+  const atelierSwatches = document.querySelectorAll('.paint-swatch');
+  atelierSwatches.forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      atelierSwatches.forEach(s => s.classList.remove('active'));
+      swatch.classList.add('active');
+      const hex = parseInt(swatch.dataset.color, 16);
+      if (scene3D) scene3D.setCarPaint(hex);
+
+      // Sync studio swatch
+      studioSwatches.forEach(s => {
+        const c = parseInt(s.dataset.color, 16);
+        s.classList.toggle('active', c === hex);
+      });
+    });
+  });
+
+  // ─── 7. Kinematics & Speedometer Sensation ─────────────────────────────────
+  const motionContainer = document.getElementById('motionSensorContainer');
+  const motionSensor = new MotionSensor(motionContainer, (mode, speed, distance, gForce = 1.0) => {
+    if (scene3D) scene3D.setVehicleSpeed(speed, gForce);
+    if (tachometer) tachometer.setSpeed(speed);
+    if (soundSynth) soundSynth.setSpeedAudio(speed);
+  });
+
+  // ─── 8. Voice Diagnostic & First Aid Responder ────────────────────────────
+  const voiceContainer = document.getElementById('voiceDiagnosticContainer');
+  let voiceDiagnostic = null;
+  if (voiceContainer) {
+    voiceDiagnostic = new VoiceDiagnostic(
+      voiceContainer,
+      () => carSelector.getSelectedVehicle(),
+      () => scene3D,
+      () => null
+    );
+  }
+
+  // Direct 3D Raycast First-Aid Click listener
+  window.addEventListener('firstAidTriageTriggered', (e) => {
+    updateBonnetButtons(true);
+    if (voiceDiagnostic && voiceDiagnostic.focusComponent) {
+      voiceDiagnostic.focusComponent(e.detail.componentId);
+    }
+  });
+
+  // ─── 9. Handle Browser Popstate & Hash Navigation ─────────────────────────
+  window.addEventListener('popstate', handleHashChange);
+  handleHashChange();
+
+  console.log("AutoContentment Multi-Page 3D Experience Initialized Successfully.");
 });

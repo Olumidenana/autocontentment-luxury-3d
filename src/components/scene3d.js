@@ -8,7 +8,9 @@ export class Scene3D {
   constructor(canvasContainer) {
     this.container = canvasContainer;
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    const initW = this.container?.clientWidth || window.innerWidth;
+    const initH = this.container?.clientHeight || window.innerHeight;
+    this.camera = new THREE.PerspectiveCamera(40, initW / initH, 0.1, 100);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     
     // Default to the photorealistic Sports Car GT (Ferrari Portofino reference)
@@ -108,8 +110,20 @@ export class Scene3D {
     }, 3800);
   }
 
+  handleResize() {
+    if (!this.container) return;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    if (w === 0 || h === 0) return;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h);
+  }
+
   init() {
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    const w = this.container.clientWidth || window.innerWidth;
+    const h = this.container.clientHeight || window.innerHeight;
+    this.renderer.setSize(w, h);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.35;
@@ -148,6 +162,13 @@ export class Scene3D {
     this.buildEngineComponents('valmora', 'ferrari_portofino');
     this.buildBonnetMesh();
     this.buildDustSheet();
+
+    // Engine bay and bonnet start closed & hidden so exterior is 100% clean and pristine
+    this.isBonnetOpen = false;
+    this.engineBayGroup.visible = false;
+    this.bonnetGroup.visible = false;
+    this.updateInteractiveMeshes();
+
     this.setupEvents();
     this.animate();
   }
@@ -743,20 +764,50 @@ export class Scene3D {
   }
 
   /**
+   * Rebuilds raycast interactive meshes list dynamically.
+   * Engine components and roadside first-aid pins are only interactive when bonnet is open.
+   */
+  updateInteractiveMeshes() {
+    this.interactiveMeshes = [];
+
+    // 1. Separable components (wheels, glass) are always interactive
+    this.separableComponents.forEach((comp) => {
+      comp.object.traverse((child) => {
+        if (child.isMesh) {
+          child.userData.separableComp = comp;
+          this.interactiveMeshes.push(child);
+        }
+      });
+    });
+
+    // 2. Bonnet is interactive
+    if (this.bonnetGroup) {
+      this.bonnetGroup.traverse((child) => {
+        if (child.isMesh) {
+          child.userData.isBonnet = true;
+          this.interactiveMeshes.push(child);
+        }
+      });
+    }
+
+    // 3. Engine components and first-aid pins are ONLY interactive when bonnet is open!
+    if (this.isBonnetOpen) {
+      Object.values(this.firstAidPins).forEach((pin) => {
+        pin.traverse((child) => {
+          if (child.isMesh) {
+            child.userData.firstAidPin = pin;
+            this.interactiveMeshes.push(child);
+          }
+        });
+      });
+    }
+  }
+
+  /**
    * Toggles the physical 3D Bonnet open or closed
    */
   toggleBonnet() {
-    this.isBonnetOpen = !this.isBonnetOpen;
-    this.isAutoCameraTargetActive = true;
-
-    if (this.isBonnetOpen) {
-      this.currentCameraTarget = this.cameraTargets.bonnet_open;
-      if (this.engineSpotlight) this.engineSpotlight.intensity = 5.0;
-    } else {
-      this.currentCameraTarget = this.cameraTargets.exterior;
-      if (this.engineSpotlight) this.engineSpotlight.intensity = 0;
-    }
-    return this.isBonnetOpen;
+    return this.openBonnet(!this.isBonnetOpen);
   }
 
   openBonnet(open) {
@@ -764,12 +815,44 @@ export class Scene3D {
     this.isAutoCameraTargetActive = true;
 
     if (open) {
+      this.engineBayGroup.visible = true;
+      this.bonnetGroup.visible = true;
       this.currentCameraTarget = this.cameraTargets.bonnet_open;
       if (this.engineSpotlight) this.engineSpotlight.intensity = 5.0;
+
+      // Animate bonnet swing upward ~60 degrees
+      gsap.to(this.bonnetGroup.rotation, { z: -Math.PI / 3.0, duration: 0.8, ease: "power2.out" });
+      gsap.to(this.bonnetGroup.position, { y: 0.72, x: 0.38, duration: 0.8, ease: "power2.out" });
+
+      // Ghost the car body slightly so internal engine block & turbos are crystal clear
+      this.bodyMaterials.forEach(mat => {
+        mat.transparent = true;
+        mat.opacity = 0.45;
+      });
     } else {
+      // Smooth close animation
+      gsap.to(this.bonnetGroup.rotation, { z: 0, duration: 0.6, ease: "power2.in" });
+      gsap.to(this.bonnetGroup.position, { y: 0.64, x: 0.35, duration: 0.6, ease: "power2.in" });
+
+      // Restore solid OEM paint
+      this.bodyMaterials.forEach(mat => {
+        mat.transparent = false;
+        mat.opacity = 1.0;
+      });
+
+      setTimeout(() => {
+        if (!this.isBonnetOpen) {
+          this.engineBayGroup.visible = false;
+          this.bonnetGroup.visible = false;
+        }
+      }, 620);
+
       this.currentCameraTarget = this.cameraTargets.exterior;
       if (this.engineSpotlight) this.engineSpotlight.intensity = 0;
     }
+
+    this.updateInteractiveMeshes();
+    return this.isBonnetOpen;
   }
 
   focusFirstAidComponent(componentId) {
@@ -853,18 +936,19 @@ export class Scene3D {
   }
 
   setupEvents() {
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    if (window.ResizeObserver && this.container) {
+      this._resizeObserver = new ResizeObserver(() => this.handleResize());
+      this._resizeObserver.observe(this.container);
+    }
+    window.addEventListener('resize', () => this.handleResize());
 
     const dom = this.renderer.domElement;
 
     // Pointer move for Raycasting & Tooltip
     dom.addEventListener('pointermove', (e) => {
-      this.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
-      this.pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      const rect = dom.getBoundingClientRect();
+      this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       this.raycaster.setFromCamera(this.pointer, this.camera);
       const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
@@ -909,8 +993,9 @@ export class Scene3D {
 
       // Only treat as click if pointer didn't drag to orbit
       if (dist < 6 && elapsed < 400) {
-        this.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
-        this.pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        const rect = dom.getBoundingClientRect();
+        this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         this.raycaster.setFromCamera(this.pointer, this.camera);
         const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
