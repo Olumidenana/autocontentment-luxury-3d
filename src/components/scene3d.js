@@ -465,7 +465,16 @@ export class Scene3D {
     }
     this.firstAidPins = {};
 
-    this.engineBayGroup.position.set(1.2, 0.0, 0);
+    let bayY = 0.0;
+    let bayX = 1.20;
+    if (this.currentBodyType === 'mercedes') {
+      bayY = 0.22;
+      bayX = 1.35;
+    } else if (this.currentBodyType === 'sedan') {
+      bayY = 0.05;
+      bayX = 1.15;
+    }
+    this.engineBayGroup.position.set(bayX, bayY, 0);
 
     const isSportsGT = brand === 'valmora' || this.currentBodyType === 'gt_sports' || modelId.includes('ferrari');
     const isMercedes = brand === 'mercedes';
@@ -637,8 +646,17 @@ export class Scene3D {
       this.bonnetGroup.remove(this.bonnetGroup.children[0]);
     }
 
-    // Rear hinge pivot positioning
-    this.bonnetGroup.position.set(0.35, 0.64, 0);
+    // Rear hinge pivot positioning adapted per chassis type
+    let bonnetY = 0.64;
+    let bonnetX = 0.35;
+    if (this.currentBodyType === 'mercedes') {
+      bonnetY = 0.82;
+      bonnetX = 0.45;
+    } else if (this.currentBodyType === 'sedan') {
+      bonnetY = 0.68;
+      bonnetX = 0.35;
+    }
+    this.bonnetGroup.position.set(bonnetX, bonnetY, 0);
 
     const bonnetMat = new THREE.MeshPhysicalMaterial({
       color: this.currentPaintColor,
@@ -757,10 +775,16 @@ export class Scene3D {
     if (bodyType !== this.currentBodyType) {
       this.currentBodyType = bodyType;
       this.loadVehicleModel(bodyType);
+    } else {
+      this.setCarPaint(this.currentPaintColor);
     }
 
-    // Rebuild engine bay with brand-specific mechanical components
+    // Rebuild engine bay & bonnet geometry tailored to this specific model
     this.buildEngineComponents(brand, modelId);
+    this.buildBonnetMesh();
+    if (modelObj && modelObj.name) {
+      this.showInspectToast(`🚗 Loaded 3D Architecture: ${modelObj.name}`);
+    }
   }
 
   /**

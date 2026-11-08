@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (scene3D) scene3D.setVehicleSpeed(speed, gForce);
     if (tachometer) tachometer.setSpeed(speed);
     if (soundSynth) soundSynth.setSpeedAudio(speed);
-  });
+  }, () => carSelector.getSelectedVehicle());
 
   // ─── 8. Voice Diagnostic & First Aid Responder ────────────────────────────
   const voiceContainer = document.getElementById('voiceDiagnosticContainer');
