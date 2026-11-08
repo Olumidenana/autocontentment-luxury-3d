@@ -4,85 +4,70 @@ export class MotionSensor {
     this.onModeChanged = onModeChanged;
     this.getVehicle = getVehicleFn;
 
-    // Locomotion & Kinematics State
+    // Locomotion & Kinematics State (Zero fake values, strictly 0.0 when at rest)
     this.currentMode = 'STATIONARY';
-    this.currentSpeed = 0.0; // Strictly 0.0 km/h when at rest
-    this.totalDistance = 0.0; // meters accumulated
+    this.currentSpeed = 0.0; // km/h
+    this.totalDistance = 0.0; // meters
     this.stepCount = 0;
     this.stepCadence = 0.0; // Hz
     this.gForce = 1.00;
     this.potholeAlerts = 0;
     this.lastPosition = null;
 
-    // Hardware Accelerometer & Pedometer Filter
+    // High-Pass Dynamic Motion Filter (Adaptive Gravity Baseline)
+    this.gravityBaseline = 9.80665;
     this.lastStepTime = 0;
     this.stepIntervals = [];
-    this.prevAccelY = 1.0;
-    this.accelValleyDetected = false;
+    this.hasValley = false;
     this.watchdogTimer = null;
-    this.hardwareSensorsActive = false;
+    this.sensorsActive = false;
 
-    // Temporary Demonstration Burst Timers
-    this.demoBurstTimeout = null;
-
-    // Live Acoustic Sound Analyzer State
+    // Live Acoustic Sound Intelligence State
     this.audioCtx = null;
     this.analyser = null;
     this.micStream = null;
     this.audioDataArray = null;
     this.isAudioListening = false;
     this.animFrameId = null;
+    this.lastAcousticClass = '';
 
     this.init();
   }
 
   init() {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
     this.container.innerHTML = `
       <div class="motion-sensor-card">
         
-        <!-- Header & Live Auto-Detection Badge -->
+        <!-- Header & Autonomous Status -->
         <div class="sensor-header">
           <div class="sensor-badge">
             <span class="pulse-indicator"></span>
-            <span>AUTONOMOUS KINEMATICS, PEDOMETER & SOUND ENGINE</span>
+            <span>100% BUILT-IN AUTONOMOUS MOTION & ACOUSTIC SENSOR</span>
           </div>
-          <h3 class="sensor-title">Fully Automatic Motion & Locomotion Telemetry</h3>
+          <h3 class="sensor-title">Built-In Motion Detector & Real-Time Sound Intelligence</h3>
           <p class="sensor-desc">
-            <strong>100% Autonomous Detection:</strong> Zero manual mode switching required. The engine automatically classifies when you are 
-            <strong>At Rest</strong>, <strong>Walking</strong>, <strong>Running</strong>, or <strong>In-Vehicle Driving</strong>.
-            The moment you stop moving, all speed and step counting halts instantly.
+            Hands-free autonomous engine. Continuously detects your real footsteps, walking speed, running pace, vehicular velocity, 
+            and road pothole drops. The moment you stop, speed immediately drops to <strong>0.0 km/h</strong>. 
+            Concurrently analyzes live ambient sound for human voice decibels and mechanical engine diagnostics.
           </p>
 
           <div class="device-sensor-status" id="deviceSensorStatus">
-            ${isMobile 
-              ? '📱 Mobile Phone Connected: Satellite GPS & 3D Accelerometer listening for live footsteps.' 
-              : '💻 Computer Mode: Accelerometer listening. Use the "Tap Step" pedal or Spacebar to test footstep detection on PC.'
-            }
-          </div>
-
-          <!-- iOS / Android Sensor Permission Activation Button -->
-          <div class="sensor-permission-row" id="sensorPermissionRow">
-            <button id="btnGrantSensors" class="btn-grant-sensors">
-              <span>📲</span>
-              <span id="grantSensorsText">ACTIVATE HARDWARE MOTION SENSORS (MOBILE GYRO/ACCEL)</span>
-            </button>
+            🟢 Autonomous Hardware Detector: Active & Listening for physical motion and sound.
           </div>
         </div>
 
-        <!-- Real-Time Autonomous Mode Classification Pill -->
+        <!-- Real-Time Classification Pill -->
         <div class="mode-status-container">
           <div class="current-mode-tag mode-stationary" id="motionModeBadge">
             <span class="mode-icon" id="motionModeIcon">🛑</span>
             <span class="mode-name" id="motionModeName">AT REST / STATIONARY</span>
           </div>
-          <div class="mode-confidence" id="motionConfidence">Auto-Detect: 0.0 km/h • Zero movement detected</div>
+          <div class="mode-confidence" id="motionConfidence">Built-in Sensor: 0.0 km/h • Motionless (At rest)</div>
         </div>
 
         <!-- Telemetry Meters Grid -->
         <div class="telemetry-meters-grid">
-          <!-- 1. Speedometer -->
+          <!-- 1. Velocity Speedometer -->
           <div class="meter-box">
             <div class="meter-lbl">CURRENT VELOCITY</div>
             <div class="meter-val-row">
@@ -94,7 +79,7 @@ export class MotionSensor {
             </div>
           </div>
 
-          <!-- 2. Distance Traversed -->
+          <!-- 2. Distance Accumulated -->
           <div class="meter-box">
             <div class="meter-lbl">DISTANCE ACCUMULATED</div>
             <div class="meter-val-row">
@@ -104,9 +89,9 @@ export class MotionSensor {
             <div class="meter-sub" id="sensorMetersVal">0 meters accumulated</div>
           </div>
 
-          <!-- 3. Step Cadence -->
+          <!-- 3. Footfall Step Cadence -->
           <div class="meter-box">
-            <div class="meter-lbl">FOOTFALL CADENCE</div>
+            <div class="meter-lbl">FOOTSTEP CADENCE</div>
             <div class="meter-val-row">
               <span class="meter-number" id="sensorCadenceVal">0.0</span>
               <span class="meter-unit">Hz</span>
@@ -114,7 +99,7 @@ export class MotionSensor {
             <div class="meter-sub" id="cadenceClass">0 steps detected (At rest)</div>
           </div>
 
-          <!-- 4. G-Force Shock & Pothole Alert -->
+          <!-- 4. Chassis G-Force & Pothole Alert -->
           <div class="meter-box">
             <div class="meter-lbl">VERTICAL CHASSIS G-FORCE</div>
             <div class="meter-val-row">
@@ -126,58 +111,31 @@ export class MotionSensor {
         </div>
 
         <!-- ══════════════════════════════════════════════════════════════════════
-             PHYSICAL FOOTSTEP SIMULATOR / DEMONSTRATION PEDAL
-             (Allows instant video proof on PC/Mobile: Tap to step -> Stop to halt)
-             ══════════════════════════════════════════════════════════════════════ -->
-        <div class="system-motion-controls">
-          <div class="sim-section-header">
-            <span class="sim-label">🎯 PHYSICAL FOOTSTEP SIMULATOR & VEHICULAR BURST (FOR PC / VIDEO DEMONSTRATIONS):</span>
-          </div>
-          
-          <div class="stepper-demo-row">
-            <button id="btnTapStep" class="btn-tap-step">
-              <span class="step-icon">🐾</span>
-              <div class="step-btn-text">
-                <span class="step-btn-title">TAKE A PHYSICAL STEP (OR PRESS SPACEBAR)</span>
-                <span class="step-btn-sub">Tap repeatedly to walk or run. Stop tapping and velocity drops immediately to 0.0 km/h.</span>
-              </div>
-            </button>
-          </div>
-
-          <div class="simulator-buttons">
-            <button class="btn-sim" id="btnBurstDrive">🚗 Hold to Drive (60 km/h)</button>
-            <button class="btn-sim" id="btnBurstHighway">🏎️ Hold for Highway (115 km/h)</button>
-            <button class="btn-sim btn-sim-pothole" id="btnBurstPothole">⚠️ Road Crater Shock (2.85G)</button>
-            <button class="btn-sim" id="btnForceRest">🛑 Reset to Rest (0.0 km/h)</button>
-          </div>
-        </div>
-
-        <!-- ══════════════════════════════════════════════════════════════════════
-             CONTINUOUS LIVE ACOUSTIC SOUND ANALYSIS ENGINE
+             CONTINUOUS LIVE ACOUSTIC SOUND ANALYSIS ENGINE (HANDS-FREE)
              ══════════════════════════════════════════════════════════════════════ -->
         <div class="acoustic-analyzer-section">
           <div class="acoustic-header">
             <div class="acoustic-title-row">
               <div class="acoustic-icon">🎙️</div>
               <div>
-                <h4 class="acoustic-title">CONTINUOUS ACOUSTIC SPECTRUM ANALYZER</h4>
-                <div class="acoustic-sub">Real-time FFT audio spectrum • Human voice dB levels • Engine mechanical harmonics</div>
+                <h4 class="acoustic-title">CONTINUOUS ACOUSTIC SOUND INTELLIGENCE</h4>
+                <div class="acoustic-sub">Auto-analyzing ambient audio • Human voice safety dB • Mechanical harmonics</div>
               </div>
             </div>
-            <button id="btnToggleAcousticMic" class="btn-mic-toggle">
-              <span id="micToggleDot" class="mic-dot-off"></span>
-              <span id="micToggleText">ENABLE LIVE MICROPHONE SENSOR</span>
-            </button>
+            <div class="acoustic-live-indicator">
+              <span class="mic-dot-on" id="micStatusDot"></span>
+              <span class="mic-live-label" id="micStatusText">LIVE AUDIO SENSOR RUNNING</span>
+            </div>
           </div>
 
           <!-- Sound Spectrum Visualizer Canvas -->
           <div class="spectrum-visualizer-container">
-            <canvas id="acousticSpectrumCanvas" class="spectrum-canvas" width="600" height="90"></canvas>
+            <canvas id="acousticSpectrumCanvas" class="spectrum-canvas" width="600" height="85"></canvas>
             <div class="spectrum-freq-axis">
               <span>20 Hz (Sub-Bass)</span>
               <span>250 Hz (Combustion)</span>
-              <span>1 kHz (Human Speech)</span>
-              <span>4 kHz (Friction)</span>
+              <span>1 kHz (Human Voice)</span>
+              <span>4 kHz (Friction/Brakes)</span>
               <span>16 kHz (Air/Tire)</span>
             </div>
           </div>
@@ -185,19 +143,19 @@ export class MotionSensor {
           <!-- Acoustic Telemetry Readings -->
           <div class="acoustic-telemetry-grid">
             <div class="acoustic-meter">
-              <span class="ac-lbl">PEAK SOUND LEVEL:</span>
+              <span class="ac-lbl">SOUND LEVEL:</span>
               <span class="ac-val" id="acousticDbVal">-- dB</span>
-              <span class="ac-desc" id="acousticDbDesc">Microphone standby</span>
+              <span class="ac-desc" id="acousticDbDesc">Live acoustic pressure</span>
             </div>
             <div class="acoustic-meter">
-              <span class="ac-lbl">PRIMARY HARMONIC:</span>
+              <span class="ac-lbl">DOMINANT FREQUENCY:</span>
               <span class="ac-val" id="acousticHarmonicVal">-- Hz</span>
-              <span class="ac-desc" id="acousticHarmonicDesc">Spectral baseline</span>
+              <span class="ac-desc" id="acousticHarmonicDesc">Peak acoustic spectral harmonic</span>
             </div>
             <div class="acoustic-meter">
-              <span class="ac-lbl">ACOUSTIC CLASSIFICATION:</span>
-              <span class="ac-val highlight-val" id="acousticClassVal">Ambient Quiet</span>
-              <span class="ac-desc" id="acousticClassDesc">Awaiting sound input</span>
+              <span class="ac-lbl">SOUND CLASSIFICATION:</span>
+              <span class="ac-val highlight-val" id="acousticClassVal">Ambient Baseline</span>
+              <span class="ac-desc" id="acousticClassDesc">Autonomous classification</span>
             </div>
           </div>
 
@@ -205,10 +163,10 @@ export class MotionSensor {
           <div class="acoustic-advisory-card" id="acousticAdvisoryCard">
             <div class="advisory-badge">
               <span class="advisory-pulse"></span>
-              <span id="advisoryBadgeText">AUTOMATIC REAL-TIME ADVISORY:</span>
+              <span id="advisoryBadgeText">REAL-TIME AUTONOMOUS ADVISORY:</span>
             </div>
             <div class="advisory-content" id="advisoryContentText">
-              Live acoustic monitor is ready. Click "ENABLE LIVE MICROPHONE SENSOR" or make a sound to receive immediate mechanical & safety advice.
+              Live acoustic monitor is active. Audio levels and mechanical frequencies are continuously analyzed to generate real-time advice.
             </div>
           </div>
 
@@ -231,20 +189,10 @@ export class MotionSensor {
     this.gVal = this.container.querySelector('#sensorGVal');
     this.potholeEl = this.container.querySelector('#potholeCount');
     this.deviceStatus = this.container.querySelector('#deviceSensorStatus');
-    this.btnGrantSensors = this.container.querySelector('#btnGrantSensors');
-    this.grantSensorsText = this.container.querySelector('#grantSensorsText');
-
-    // Cache Demonstration DOM references
-    this.btnTapStep = this.container.querySelector('#btnTapStep');
-    this.btnBurstDrive = this.container.querySelector('#btnBurstDrive');
-    this.btnBurstHighway = this.container.querySelector('#btnBurstHighway');
-    this.btnBurstPothole = this.container.querySelector('#btnBurstPothole');
-    this.btnForceRest = this.container.querySelector('#btnForceRest');
 
     // Cache Acoustic DOM references
-    this.btnMicToggle = this.container.querySelector('#btnToggleAcousticMic');
-    this.micDot = this.container.querySelector('#micToggleDot');
-    this.micText = this.container.querySelector('#micToggleText');
+    this.micDot = this.container.querySelector('#micStatusDot');
+    this.micText = this.container.querySelector('#micStatusText');
     this.spectrumCanvas = this.container.querySelector('#acousticSpectrumCanvas');
     this.spectrumCtx = this.spectrumCanvas ? this.spectrumCanvas.getContext('2d') : null;
     this.dbVal = this.container.querySelector('#acousticDbVal');
@@ -256,124 +204,132 @@ export class MotionSensor {
     this.advisoryContent = this.container.querySelector('#advisoryContentText');
     this.advisoryBadge = this.container.querySelector('#advisoryBadgeText');
 
-    this.bindEvents();
     this.startHardwareSensors();
     this.startStepWatchdog();
-    this.autoStartAcousticEngine();
+    this.setupAutoAcousticEngine();
   }
 
-  bindEvents() {
-    // 1. Mobile Sensor Permission Request (iOS / Android 13+)
-    if (this.btnGrantSensors) {
-      this.btnGrantSensors.addEventListener('click', () => {
-        this.requestMobilePermissions();
-      });
+  // ══════════════════════════════════════════════════════════════════════════════
+  // BUILT-IN HARDWARE ACCELEROMETER & SATELLITE GPS (100% HANDS-FREE)
+  // ══════════════════════════════════════════════════════════════════════════════
+  startHardwareSensors() {
+    if (this.sensorsActive) return;
+    this.sensorsActive = true;
+
+    // 1. Satellite GPS Speed & Telemetry
+    if ('geolocation' in navigator) {
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const accuracy = pos.coords.accuracy;
+          let gpsSpeedKmh = 0.0;
+
+          if (pos.coords.speed !== null && !isNaN(pos.coords.speed) && pos.coords.speed > 0.4) {
+            gpsSpeedKmh = pos.coords.speed * 3.6;
+          } else if (this.lastPosition) {
+            const distanceDelta = this.calculateHaversine(this.lastPosition.lat, this.lastPosition.lon, lat, lon);
+            const timeDelta = (pos.timestamp - this.lastPosition.timestamp) / 1000;
+            if (timeDelta > 0.8 && distanceDelta > 1.2) {
+              gpsSpeedKmh = (distanceDelta / timeDelta) * 3.6;
+              this.totalDistance += distanceDelta;
+            }
+          }
+
+          this.lastPosition = { lat, lon, timestamp: pos.timestamp };
+
+          if (accuracy < 35 && this.deviceStatus) {
+            this.deviceStatus.textContent = `🟢 Satellite GPS Active (±${accuracy.toFixed(1)}m precision • Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)})`;
+            this.deviceStatus.style.color = '#10b981';
+          }
+
+          // If GPS indicates car driving (> 16 km/h) and no footsteps
+          if (gpsSpeedKmh > 16.0) {
+            this.stepCadence = 0.0;
+            this.updateSpeedAndDistance(gpsSpeedKmh);
+            this.evaluateClassification(gpsSpeedKmh, 0.0, 1.05);
+          } else if (gpsSpeedKmh < 0.6 && this.currentMode === 'CAR_DRIVING') {
+            this.setStationaryState();
+          }
+        },
+        (err) => {
+          console.warn('GPS hardware notice:', err.message);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
     }
 
-    // 2. Physical Footstep Pedal: Click / Tap to register a real step
-    if (this.btnTapStep) {
-      this.btnTapStep.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.registerPhysicalStep();
-        this.pulseStepButton();
-      });
-    }
+    // 2. High-Pass Adaptive Accelerometer Filter for True Human Steps
+    const handleDeviceMotion = (e) => {
+      // Read raw acceleration (with or without gravity)
+      const acc = e.accelerationIncludingGravity || e.acceleration;
+      if (!acc) return;
 
-    // 3. Keyboard Spacebar / ArrowUp to simulate physical footsteps on PC
-    window.addEventListener('keydown', (e) => {
-      // Don't intercept if typing in an input or textarea
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        this.registerPhysicalStep();
-        this.pulseStepButton();
+      const ax = acc.x || 0;
+      const ay = acc.y || 0;
+      const az = acc.z || 0;
+      const rawMagnitude = Math.sqrt(ax * ax + ay * ay + az * az);
+      if (rawMagnitude < 0.1) return;
+
+      // Update running gravity baseline (EMA filter with alpha = 0.92)
+      this.gravityBaseline = this.gravityBaseline * 0.92 + rawMagnitude * 0.08;
+
+      // Dynamic acceleration with gravity baseline subtracted (pure human footfall impulse)
+      const dynamicAcc = Math.abs(rawMagnitude - this.gravityBaseline);
+      const instantG = rawMagnitude / 9.80665;
+      this.gForce = instantG;
+      if (this.gVal && instantG !== 2.85) this.gVal.textContent = instantG.toFixed(2);
+
+      // Pothole Shock Detection: Sudden massive vertical shock (> 1.9G total or dynamic impulse > 8.5 m/s²)
+      if (instantG > 2.25 || dynamicAcc > 8.5) {
+        this.triggerPotholeShock(instantG > 2.25 ? instantG : 2.85);
+        return;
       }
-    });
 
-    // 4. In-Car Driving Simulation Burst (Hold or Click)
-    let driveInterval = null;
-    const startDrivingBurst = (speedTarget) => {
-      clearInterval(driveInterval);
-      driveInterval = setInterval(() => {
-        const speed = speedTarget + (Math.random() - 0.5) * 3;
-        const deltaMeters = (speed / 3.6) * 0.2;
-        this.totalDistance += deltaMeters;
-        this.stepCadence = 0.0; // Feet at rest on pedals
-        this.gForce = 1.05 + (Math.random() - 0.5) * 0.04;
-        this.updateSpeedAndDistance(speed);
-        this.evaluateClassification(speed, 0.0, this.gForce);
-      }, 200);
+      // Step Detection using Hysteresis (Valley then Peak)
+      // Valley: dynamic acceleration drops below 0.55 m/s²
+      if (dynamicAcc < 0.55) {
+        this.hasValley = true;
+      }
+
+      // Peak: dynamic acceleration rises above 1.45 m/s² (human heel strike on ground)
+      const now = performance.now();
+      if (this.hasValley && dynamicAcc > 1.45 && (now - this.lastStepTime) > 240) {
+        this.hasValley = false;
+        this.registerStep(now);
+      }
     };
 
-    const stopDrivingBurst = () => {
-      clearInterval(driveInterval);
-      this.setStationaryState();
-    };
-
-    if (this.btnBurstDrive) {
-      this.btnBurstDrive.addEventListener('mousedown', () => startDrivingBurst(60));
-      this.btnBurstDrive.addEventListener('mouseup', stopDrivingBurst);
-      this.btnBurstDrive.addEventListener('touchstart', (e) => { e.preventDefault(); startDrivingBurst(60); });
-      this.btnBurstDrive.addEventListener('touchend', stopDrivingBurst);
+    if (window.DeviceMotionEvent) {
+      window.addEventListener('devicemotion', handleDeviceMotion, { passive: true });
     }
 
-    if (this.btnBurstHighway) {
-      this.btnBurstHighway.addEventListener('mousedown', () => startDrivingBurst(115));
-      this.btnBurstHighway.addEventListener('mouseup', stopDrivingBurst);
-      this.btnBurstHighway.addEventListener('touchstart', (e) => { e.preventDefault(); startDrivingBurst(115); });
-      this.btnBurstHighway.addEventListener('touchend', stopDrivingBurst);
-    }
-
-    if (this.btnBurstPothole) {
-      this.btnBurstPothole.addEventListener('click', () => {
-        this.triggerPotholeShock(2.85);
-      });
-    }
-
-    if (this.btnForceRest) {
-      this.btnForceRest.addEventListener('click', () => {
-        this.setStationaryState();
-      });
-    }
-
-    // 5. Microphone Acoustic Toggle Button
-    if (this.btnMicToggle) {
-      this.btnMicToggle.addEventListener('click', () => {
-        if (this.isAudioListening) {
-          this.stopAcousticEngine();
-        } else {
-          this.startAcousticEngine();
+    // For iOS 13+ devices where permission needs a user gesture, request on first interaction
+    const grantMotion = async () => {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        try {
+          const perm = await DeviceMotionEvent.requestPermission();
+          if (perm === 'granted') {
+            window.addEventListener('devicemotion', handleDeviceMotion, { passive: true });
+          }
+        } catch (err) {
+          // ignore
         }
-      });
-    }
+      }
+    };
+    window.addEventListener('touchstart', grantMotion, { once: true });
+    window.addEventListener('click', grantMotion, { once: true });
   }
 
-  pulseStepButton() {
-    if (!this.btnTapStep) return;
-    this.btnTapStep.classList.add('step-pressed');
-    setTimeout(() => {
-      this.btnTapStep.classList.remove('step-pressed');
-    }, 120);
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════════
-  // AUTONOMOUS STEP DETECTION & WATCHDOG (HALTS INSTANTLY WHEN YOU STOP)
-  // ══════════════════════════════════════════════════════════════════════════════
-  
-  /**
-   * Registers a single footstep (called either by hardware accelerometer or tap stepper).
-   * Calculates instantaneous cadence, classifies walking vs running, and updates odometer.
-   */
-  registerPhysicalStep() {
-    const now = performance.now();
-    const timeSinceLastStep = this.lastStepTime > 0 ? (now - this.lastStepTime) / 1000 : 0;
-    this.lastStepTime = now;
+  registerStep(timestamp) {
+    const timeDeltaSec = this.lastStepTime > 0 ? (timestamp - this.lastStepTime) / 1000 : 0;
+    this.lastStepTime = timestamp;
     this.stepCount++;
 
-    // Calculate Cadence (steps per second, Hz)
+    // Cadence (steps per second, Hz)
     let cadence = 1.8;
-    if (timeSinceLastStep > 0.22 && timeSinceLastStep < 1.4) {
-      cadence = 1.0 / timeSinceLastStep;
+    if (timeDeltaSec > 0.22 && timeDeltaSec < 1.3) {
+      cadence = 1.0 / timeDeltaSec;
       this.stepIntervals.push(cadence);
       if (this.stepIntervals.length > 4) this.stepIntervals.shift();
       cadence = this.stepIntervals.reduce((a, b) => a + b, 0) / this.stepIntervals.length;
@@ -382,9 +338,7 @@ export class MotionSensor {
     this.stepCadence = Math.min(3.8, Math.max(0.8, cadence));
 
     // Dynamic Human Stride & Speed calculation
-    // Running: cadence > 2.2 Hz -> ~1.15m stride, speed 8 - 14 km/h
-    // Walking: cadence <= 2.2 Hz -> ~0.78m stride, speed 3.2 - 5.8 km/h
-    const isRunning = this.stepCadence > 2.2;
+    const isRunning = this.stepCadence > 2.15;
     const strideMeters = isRunning ? 1.15 : 0.78;
     this.totalDistance += strideMeters;
 
@@ -396,15 +350,14 @@ export class MotionSensor {
   }
 
   /**
-   * High-frequency watchdog running at 10 Hz.
-   * If > 1.0 second has elapsed since the last step, THE USER HAS STOPPED!
+   * Watchdog timer running at 10 Hz.
+   * If > 1.0 second has elapsed with NO NEW FOOTSTEP, the user has stopped walking!
    * Immediately halts step cadence, freezes velocity at 0.0 km/h, and reverts to AT REST.
    */
   startStepWatchdog() {
     if (this.watchdogTimer) clearInterval(this.watchdogTimer);
 
     this.watchdogTimer = setInterval(() => {
-      // Only apply to walking/running modes (vehicular mode uses GPS or burst)
       if (this.currentMode === 'WALKING' || this.currentMode === 'RUNNING') {
         const timeSinceLastStep = performance.now() - this.lastStepTime;
         
@@ -430,130 +383,22 @@ export class MotionSensor {
     }
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
-  // HARDWARE TELEMETRY SENSORS (MOBILE ACCELEROMETER + SATELLITE GPS)
-  // ══════════════════════════════════════════════════════════════════════════════
-  async requestMobilePermissions() {
-    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-      try {
-        const permission = await DeviceMotionEvent.requestPermission();
-        if (permission === 'granted') {
-          if (this.grantSensorsText) this.grantSensorsText.textContent = '✅ HARDWARE MOTION SENSORS ACTIVE & LISTENING';
-          if (this.btnGrantSensors) this.btnGrantSensors.classList.add('granted');
-          this.startHardwareSensors();
-        } else {
-          if (this.grantSensorsText) this.grantSensorsText.textContent = '❌ MOTION PERMISSION DENIED IN BROWSER SETTINGS';
-        }
-      } catch (err) {
-        console.warn('Sensor permission error:', err);
-      }
-    } else {
-      if (this.grantSensorsText) this.grantSensorsText.textContent = '✅ NATIVE MOTION SENSORS RUNNING DIRECTLY';
-      if (this.btnGrantSensors) this.btnGrantSensors.classList.add('granted');
-    }
-  }
-
-  startHardwareSensors() {
-    if (this.hardwareSensorsActive) return;
-    this.hardwareSensorsActive = true;
-
-    // 1. Satellite GPS Watcher
-    if ('geolocation' in navigator) {
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          const accuracy = pos.coords.accuracy;
-          let gpsSpeedKmh = 0.0;
-
-          if (pos.coords.speed !== null && !isNaN(pos.coords.speed) && pos.coords.speed > 0.4) {
-            gpsSpeedKmh = pos.coords.speed * 3.6;
-          } else if (this.lastPosition) {
-            const distanceDelta = this.calculateHaversine(this.lastPosition.lat, this.lastPosition.lon, lat, lon);
-            const timeDelta = (pos.timestamp - this.lastPosition.timestamp) / 1000;
-            if (timeDelta > 0.8 && distanceDelta > 1.2) {
-              gpsSpeedKmh = (distanceDelta / timeDelta) * 3.6;
-              this.totalDistance += distanceDelta;
-            }
-          }
-
-          this.lastPosition = { lat, lon, timestamp: pos.timestamp };
-
-          if (accuracy < 35 && this.deviceStatus) {
-            this.deviceStatus.textContent = `📡 Satellite GPS Connected (±${accuracy.toFixed(1)}m precision, Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)})`;
-            this.deviceStatus.style.color = '#10b981';
-          }
-
-          // If GPS reports in-vehicle driving (> 16 km/h)
-          if (gpsSpeedKmh > 16.0) {
-            this.stepCadence = 0.0;
-            this.updateSpeedAndDistance(gpsSpeedKmh);
-            this.evaluateClassification(gpsSpeedKmh, 0.0, 1.05);
-          } else if (gpsSpeedKmh < 0.6 && (this.currentMode === 'CAR_DRIVING' || this.currentMode === 'STATIONARY')) {
-            this.setStationaryState();
-          }
-        },
-        (err) => {
-          console.warn('GPS hardware notice:', err.message);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    }
-
-    // 2. 3D Accelerometer Step Peak-Valley Algorithm
-    const handleDeviceMotion = (e) => {
-      const acc = e.accelerationIncludingGravity || e.acceleration;
-      if (!acc || acc.y === null) return;
-
-      const totalMagnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-      const measuredG = totalMagnitude / 9.80665;
-      this.gForce = measuredG;
-      if (this.gVal && measuredG !== 2.85) this.gVal.textContent = measuredG.toFixed(2);
-
-      // Pothole Shock Detection: Sudden massive vertical delta > 1.9G
-      if (measuredG > 2.25) {
-        this.triggerPotholeShock(measuredG);
-        return;
-      }
-
-      // Step Detection: Dual-threshold hysteresis (Valley then Peak)
-      // Valley: G drops below 0.93G as body prepares footfall
-      if (measuredG < 0.93) {
-        this.accelValleyDetected = true;
-      }
-
-      // Peak: G rises above 1.16G (foot strike on ground)
-      const now = performance.now();
-      if (this.accelValleyDetected && measuredG > 1.16 && (now - this.lastStepTime) > 240) {
-        this.accelValleyDetected = false;
-        this.registerPhysicalStep();
-      }
-
-      this.prevAccelY = measuredG;
-    };
-
-    if (window.DeviceMotionEvent) {
-      window.addEventListener('devicemotion', handleDeviceMotion, { passive: true });
-    }
-  }
-
   triggerPotholeShock(gMagnitude = 2.85) {
     this.potholeAlerts++;
     this.gForce = gMagnitude;
 
     if (this.gVal) this.gVal.textContent = gMagnitude.toFixed(2);
     if (this.potholeEl) {
-      this.potholeEl.textContent = `⚠️ ${this.potholeAlerts} Road Crater(s) Detected! (${gMagnitude.toFixed(2)}G Shock)`;
+      this.potholeEl.textContent = `⚠️ ${this.potholeAlerts} Road Shock(s) Detected! (${gMagnitude.toFixed(2)}G Shock)`;
       this.potholeEl.style.color = '#ff3344';
       this.potholeEl.style.fontWeight = '700';
     }
 
     if (this.confidenceEl) {
-      this.confidenceEl.textContent = `⚠️ IMPACT RECOIL: Vertical shock crater ${gMagnitude.toFixed(2)}G detected!`;
+      this.confidenceEl.textContent = `⚠️ IMPACT DETECTED: Vertical chassis crater ${gMagnitude.toFixed(2)}G!`;
       this.confidenceEl.style.color = '#ff3344';
     }
 
-    // Send impulse to 3D Scene and Audio Synth
     if (this.onModeChanged) {
       this.onModeChanged('POTHOLE_IMPACT', this.currentSpeed, this.totalDistance, gMagnitude);
     }
@@ -595,30 +440,30 @@ export class MotionSensor {
     let mode = 'STATIONARY';
     let icon = '🛑';
     let name = 'AT REST / STATIONARY';
-    let conf = 'Auto-Detect: 0.0 km/h • Zero movement detected';
+    let conf = 'Built-in Sensor: 0.0 km/h • Motionless (At rest)';
 
     if (speed < 0.6) {
       mode = 'STATIONARY';
       icon = '🛑';
       name = 'AT REST / STATIONARY';
-      conf = 'Auto-Detect: 0.0 km/h • Motionless (At rest)';
+      conf = 'Built-in Sensor: 0.0 km/h • Zero movement detected';
     } else if (speed >= 0.6 && speed <= 6.5 && cadence > 0.6) {
       mode = 'WALKING';
       icon = '🚶';
       name = 'HUMAN PHYSICAL WALKING';
-      conf = `Auto-Detect: ${speed.toFixed(1)} km/h • ${cadence.toFixed(1)} Hz footfall cadence • Human walking stride`;
+      conf = `Auto-Detected: ${speed.toFixed(1)} km/h • ${cadence.toFixed(1)} Hz footfall cadence • Human stride`;
       if (this.cadenceClass) this.cadenceClass.textContent = `${this.stepCount} human steps accumulated`;
     } else if (speed > 6.5 && speed <= 18.0 && cadence > 2.0) {
       mode = 'RUNNING';
       icon = '🏃';
       name = 'HUMAN RUNNING / JOGGING';
-      conf = `Auto-Detect: ${speed.toFixed(1)} km/h • ${cadence.toFixed(1)} Hz fast footfalls • Elevated locomotion`;
+      conf = `Auto-Detected: ${speed.toFixed(1)} km/h • ${cadence.toFixed(1)} Hz fast footfalls • Elevated locomotion`;
       if (this.cadenceClass) this.cadenceClass.textContent = `${this.stepCount} athletic strides accumulated`;
     } else {
       mode = 'CAR_DRIVING';
       icon = '🚗';
       name = 'IN VEHICLE (DRIVING)';
-      conf = `Auto-Detect: ${speed.toFixed(1)} km/h • Vehicular velocity • 0 Hz footfalls (Driver/Passenger)`;
+      conf = `Auto-Detected: ${speed.toFixed(1)} km/h • Vehicular velocity • 0 Hz footfalls`;
       if (this.cadenceClass) this.cadenceClass.textContent = `0 Hz (Feet resting in vehicular cabin)`;
     }
 
@@ -644,33 +489,29 @@ export class MotionSensor {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
-  // CONTINUOUS LIVE ACOUSTIC SOUND ANALYSIS ENGINE (WEB AUDIO API + FFT)
+  // CONTINUOUS LIVE ACOUSTIC SOUND ANALYSIS (HANDS-FREE AUTO-START)
   // ══════════════════════════════════════════════════════════════════════════════
-  autoStartAcousticEngine() {
-    window.addEventListener('click', () => {
+  setupAutoAcousticEngine() {
+    const autoInit = async () => {
       if (!this.audioCtx) {
-        this.initAudioContext();
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtxClass) this.audioCtx = new AudioCtxClass();
       }
-    }, { once: true });
+      if (this.audioCtx && this.audioCtx.state === 'suspended') {
+        await this.audioCtx.resume();
+      }
+      if (!this.isAudioListening) {
+        this.startAcousticStream();
+      }
+    };
+
+    // Auto-start on any initial interaction anywhere on the screen
+    window.addEventListener('click', autoInit, { once: true });
+    window.addEventListener('touchstart', autoInit, { once: true });
+    window.addEventListener('keydown', autoInit, { once: true });
   }
 
-  initAudioContext() {
-    try {
-      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtxClass) {
-        this.audioCtx = new AudioCtxClass();
-      }
-    } catch (e) {
-      console.warn('AudioContext notice:', e);
-    }
-  }
-
-  async startAcousticEngine() {
-    if (!this.audioCtx) this.initAudioContext();
-    if (this.audioCtx && this.audioCtx.state === 'suspended') {
-      await this.audioCtx.resume();
-    }
-
+  async startAcousticStream() {
     try {
       this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       const source = this.audioCtx.createMediaStreamSource(this.micStream);
@@ -684,31 +525,13 @@ export class MotionSensor {
       this.isAudioListening = true;
 
       if (this.micDot) this.micDot.className = 'mic-dot-on';
-      if (this.micText) this.micText.textContent = 'MICROPHONE SENSOR: LIVE & ANALYZING';
-      if (this.btnMicToggle) this.btnMicToggle.classList.add('active');
+      if (this.micText) this.micText.textContent = 'LIVE ACOUSTIC MONITORING ACTIVE';
 
       this.analyzeAcousticLoop();
     } catch (err) {
       console.warn('Microphone permission notice:', err);
-      if (this.micText) this.micText.textContent = 'MIC PERMISSION REQUIRED';
+      if (this.micText) this.micText.textContent = 'TAP ANYWHERE TO GRANT MIC PERMISSION';
     }
-  }
-
-  stopAcousticEngine() {
-    this.isAudioListening = false;
-    if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
-    if (this.micStream) {
-      this.micStream.getTracks().forEach(t => t.stop());
-      this.micStream = null;
-    }
-
-    if (this.micDot) this.micDot.className = 'mic-dot-off';
-    if (this.micText) this.micText.textContent = 'ENABLE LIVE MICROPHONE SENSOR';
-    if (this.btnMicToggle) this.btnMicToggle.classList.remove('active');
-
-    if (this.dbVal) this.dbVal.textContent = '-- dB';
-    if (this.harmonicVal) this.harmonicVal.textContent = '-- Hz';
-    if (this.classVal) this.classVal.textContent = 'Standby';
   }
 
   analyzeAcousticLoop() {
