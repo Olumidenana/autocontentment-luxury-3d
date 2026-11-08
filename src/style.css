@@ -1957,6 +1957,90 @@ textarea.input-field {
   box-shadow: 0 0 24px rgba(255, 51, 68, 0.5);
 }
 
+/* Hardware Sensor Permission & Stepper Pedal */
+.sensor-permission-row {
+  margin-top: 14px;
+}
+
+.btn-grant-sensors {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(12, 129, 61, 0.15);
+  border: 1px solid var(--color-primary);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.btn-grant-sensors:hover,
+.btn-grant-sensors.granted {
+  background: var(--color-primary);
+  box-shadow: 0 0 20px var(--color-primary-glow);
+}
+
+.stepper-demo-row {
+  margin-bottom: 14px;
+}
+
+.btn-tap-step {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  background: linear-gradient(135deg, rgba(12, 129, 61, 0.25), rgba(56, 189, 248, 0.18));
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  padding: 18px 24px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.btn-tap-step:hover {
+  background: linear-gradient(135deg, rgba(12, 129, 61, 0.35), rgba(56, 189, 248, 0.28));
+  box-shadow: 0 0 24px var(--color-primary-glow);
+  transform: translateY(-1px);
+}
+
+.btn-tap-step.step-pressed {
+  transform: scale(0.98);
+  background: var(--color-primary);
+  box-shadow: 0 0 35px var(--color-primary-glow);
+}
+
+.step-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.step-btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-btn-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffffff;
+}
+
+.step-btn-sub {
+  font-size: 12px;
+  color: rgba(240, 244, 248, 0.8);
+  line-height: 1.4;
+}
+
 .simulator-buttons {
   display: flex;
   align-items: center;
